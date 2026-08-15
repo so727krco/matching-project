@@ -1,0 +1,610 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, Users, UserMinus, UserPlus, X, Plus, Trash2 } from 'lucide-react';
+import { getMembers, getMatches, setMatches as saveMatches, getCouples, getCurrentUser, type Member, type Match, type MatchMember } from '../utils/storage';
+
+// Mock Data
+const getMockScore = (matchId: number, memberId: number) => {
+  return 60 + ((matchId * 17 + memberId * 11) % 41); // Generates 60~100 randomly
+};
+
+const renderScoreBadge = (score: number, opacity: number = 1) => {
+  let bgColor, textColor, extraContent;
+  
+  if (score >= 90) {
+    bgColor = '#fee2e2';
+    textColor = '#991b1b';
+    extraContent = '❤️';
+  } else if (score >= 80) {
+    bgColor = '#dcfce7';
+    textColor = '#166534';
+    extraContent = '';
+  } else if (score >= 70) {
+    bgColor = 'transparent';
+    textColor = '#4b5563';
+    extraContent = '';
+  } else {
+    bgColor = '#dbeafe';
+    textColor = '#1e40af';
+    extraContent = '';
+  }
+
+  const borderStyle = (score >= 70 && score < 80) ? '1px solid #e5e7eb' : '1px solid transparent';
+
+  return (
+    <div className="text-center" style={{ backgroundColor: bgColor, color: textColor, padding: '0.5rem', borderRadius: 'var(--radius-md)', minWidth: '70px', border: borderStyle, opacity }}>
+      <div className="text-xs font-semibold">매칭점수</div>
+      <div className="font-bold text-lg flex items-center justify-center gap-1">
+        {extraContent && <span style={{ fontSize: '0.9rem' }}>{extraContent}</span>}
+        <span>{score}점</span>
+      </div>
+    </div>
+  );
+};
+
+export default function MatchingManagement() {
+  const navigate = useNavigate();
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
+  const [newMatchTitle, setNewMatchTitle] = useState('');
+  const [newMatchThemes, setNewMatchThemes] = useState<string[]>(['', '', '']);
+  const [detailMember, setDetailMember] = useState<Member | null>(null);
+  const [includeOtherManagers, setIncludeOtherManagers] = useState(false);
+
+  useEffect(() => {
+    setMatches(getMatches());
+    
+    // Fetch all members, but filter out ones in a couple
+    const members = getMembers();
+    const couples = getCouples();
+    const availableMembers = members.filter(m => 
+      !couples.some(c => c.member1.id === m.id || c.member2.id === m.id)
+    );
+    setAllMembers(availableMembers);
+  }, []);
+
+  const handleRemoveMember = (matchId: number, memberId: number) => {
+    // 실제로는 백엔드 API를 호출합니다.
+    if (confirm('이 회원을 현재 매칭에서 삭제하시겠습니까?')) {
+      const updatedMatches = matches.map(match => {
+        if (match.id === matchId) {
+          return { ...match, members: match.members.filter(m => m.id !== memberId) };
+        }
+        return match;
+      });
+      setMatches(updatedMatches);
+      saveMatches(updatedMatches);
+      
+      if (selectedMatch) {
+        setSelectedMatch({
+          ...selectedMatch,
+          members: selectedMatch.members.filter((m) => m.id !== memberId)
+        });
+      }
+    }
+  };
+
+  const confirmDeleteMatch = (matchId: number) => {
+    setMatchToDelete(matchId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteMatch = () => {
+    if (matchToDelete !== null) {
+      const updatedMatches = matches.filter(m => m.id !== matchToDelete);
+      setMatches(updatedMatches);
+      saveMatches(updatedMatches);
+      setIsDeleteModalOpen(false);
+      setMatchToDelete(null);
+    }
+  };
+
+  const handleTogglePayment = (matchId: number, memberId: number) => {
+    const updatedMatches = matches.map(match => {
+      if (match.id === matchId) {
+        const updatedMembers = match.members.map(m => {
+          if (m.id === memberId) {
+            return { ...m, paymentStatus: m.paymentStatus === 'PAID' ? 'UNPAID' : 'PAID' } as MatchMember;
+          }
+          return m;
+        });
+        return { ...match, members: updatedMembers };
+      }
+      return match;
+    });
+    setMatches(updatedMatches);
+    saveMatches(updatedMatches);
+    
+    if (selectedMatch) {
+      const updatedSelectedMembers = selectedMatch.members.map((m: MatchMember) => {
+        if (m.id === memberId) {
+          return { ...m, paymentStatus: m.paymentStatus === 'PAID' ? 'UNPAID' : 'PAID' } as MatchMember;
+        }
+        return m;
+      });
+      setSelectedMatch({
+        ...selectedMatch,
+        members: updatedSelectedMembers
+      });
+    }
+  };
+
+  const handleOpenAddMember = () => {
+    setIsAddModalOpen(true);
+  };
+
+  const handleConfirmAddMember = (member: any) => {
+    if (!selectedMatch) return;
+    
+    // 중복 체크
+    if (selectedMatch.members.some((m: any) => m.id === member.id)) {
+      alert('이미 이 매칭에 포함된 회원입니다.');
+      return;
+    }
+
+    const matchMember: MatchMember = {
+      ...member,
+      approvalStatus: member.managerName === getCurrentUser() ? 'approved' : 'pending'
+    };
+
+    const updatedMatches = matches.map(match => {
+      if (match.id === selectedMatch?.id) {
+        return { ...match, members: [...match.members, matchMember] };
+      }
+      return match;
+    });
+    setMatches(updatedMatches);
+    saveMatches(updatedMatches);
+    
+    if (selectedMatch) {
+      setSelectedMatch({
+        ...selectedMatch,
+        members: [...selectedMatch.members, matchMember]
+      });
+    }
+
+    setIsAddModalOpen(false);
+  };
+
+  const handleCreateMatch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMatchTitle.trim()) return;
+    
+    const newMatch: Match = {
+      id: Date.now(),
+      title: newMatchTitle,
+      date: new Date().toISOString().split('T')[0],
+      themes: newMatchThemes.filter(t => t.trim() !== ''),
+      managerName: getCurrentUser(),
+      members: []
+    };
+    
+    const updatedMatches = [newMatch, ...matches];
+    setMatches(updatedMatches);
+    saveMatches(updatedMatches);
+    
+    setNewMatchTitle('');
+    setNewMatchThemes(['', '', '']);
+    setIsCreateMatchModalOpen(false);
+  };
+
+  return (
+    <div className="app-container bg-gray-50">
+      <header className="app-header">
+        <button className="back-button" onClick={() => navigate('/main')}>
+          <ChevronLeft size={20} />
+          <span>메인으로</span>
+        </button>
+        <div className="app-title text-base">매칭관리</div>
+        <div style={{ width: '80px' }}></div>
+      </header>
+      
+      <main className="main-content">
+        <div className="mb-6 flex justify-between items-end">
+          <div>
+            <h2 className="text-2xl mb-2">매칭 리스트</h2>
+            <p className="text-secondary text-sm">최근 생성된 매칭 결과 목록입니다.</p>
+          </div>
+          <button 
+            className="btn btn-primary"
+            style={{ padding: '0.5rem 1rem' }}
+            onClick={() => setIsCreateMatchModalOpen(true)}
+          >
+            <Plus size={16} />
+            새 매칭 추가
+          </button>
+        </div>
+
+        <div className="list-container">
+          {matches.map((match) => (
+            <div 
+              key={match.id} 
+              className="list-item flex justify-between items-center"
+            >
+              <div 
+                className="flex items-center gap-4 cursor-pointer flex-1"
+                onClick={() => setSelectedMatch(match)}
+              >
+                <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '0.75rem', borderRadius: '50%', color: 'var(--color-primary)' }}>
+                  <Users size={20} />
+                </div>
+                <div className="list-item-content">
+                  <span className="list-item-title">{match.title}</span>
+                  <span className="list-item-subtitle mb-2">{match.date} • {match.members.length}명 참여</span>
+                  <div className="flex gap-1 flex-wrap">
+                    {match.themes && match.themes.map((theme: string, idx: number) => (
+                      <span key={idx} className="badge" style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                        #{theme}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors ml-4"
+                onClick={(e) => { e.stopPropagation(); confirmDeleteMatch(match.id); }}
+                title="매칭 삭제"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </main>
+
+      {/* Match Detail Modal */}
+      {selectedMatch && (
+        <div className="modal-overlay" onClick={() => setSelectedMatch(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <div>
+                <h3 className="text-lg font-semibold">{selectedMatch.title} 상세</h3>
+                {selectedMatch.managerName && (
+                  <div className="text-xs text-secondary mt-1">매칭 등록 담당자: {selectedMatch.managerName}</div>
+                )}
+              </div>
+              <button className="close-button" onClick={() => setSelectedMatch(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="mb-4">
+                <div className="flex gap-1 flex-wrap mb-2">
+                  {selectedMatch.themes && selectedMatch.themes.map((theme: string, idx: number) => (
+                    <span key={idx} className="badge" style={{ padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                      #{theme}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-semibold text-secondary">참여 회원 (점수 순)</h4>
+                <button 
+                  className="btn btn-outline" 
+                  style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--font-size-xs)' }}
+                  onClick={handleOpenAddMember}
+                >
+                  <UserPlus size={14} />
+                  회원 추가
+                </button>
+              </div>
+              
+              <div className="list-container gap-2">
+                {selectedMatch.members.length === 0 && (
+                  <div className="text-center text-secondary py-4 text-sm">참여 중인 회원이 없습니다.</div>
+                )}
+                {selectedMatch.members.map((member: any) => (
+                  <div 
+                    key={member.id} 
+                    className="card list-item" 
+                    style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                    onClick={() => setDetailMember(member)}
+                  >
+                    <div className="flex gap-4 items-center">
+                      {renderScoreBadge(getMockScore(selectedMatch.id, member.id))}
+                      <div>
+                        <div className="font-semibold flex items-center gap-2">
+                          {member.name} 
+                          <span className="text-sm font-normal text-secondary">({member.gender}, {member.age}세)</span>
+                          {member.approvalStatus === 'pending' && (
+                            <span className="badge bg-yellow-100 text-yellow-800" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: '4px' }}>
+                              타 담당자 승인 대기중
+                            </span>
+                          )}
+                          {member.paymentStatus === 'PAID' ? (
+                            <span className="badge bg-green-100 text-green-800" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', backgroundColor: '#dcfce3', color: '#166534', borderRadius: '4px' }}>
+                              결제 완료
+                            </span>
+                          ) : (
+                            <span className="badge bg-gray-100 text-gray-800" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', backgroundColor: '#f3f4f6', color: '#374151', borderRadius: '4px' }}>
+                              입금 대기중
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-secondary">{member.job}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className={`btn ${member.paymentStatus === 'PAID' ? 'btn-outline' : 'btn-primary'}`}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', 
+                          fontSize: 'var(--font-size-xs)',
+                          opacity: member.approvalStatus === 'pending' ? 0.5 : 1,
+                          cursor: member.approvalStatus === 'pending' ? 'not-allowed' : 'pointer'
+                        }}
+                        disabled={member.approvalStatus === 'pending'}
+                        onClick={() => handleTogglePayment(selectedMatch.id, member.id)}
+                        title={member.approvalStatus === 'pending' ? "승인 대기 중에는 결제 상태를 변경할 수 없습니다." : ""}
+                      >
+                        {member.paymentStatus === 'PAID' ? '결제 취소' : '결제 완료'}
+                      </button>
+                      <button 
+                        className="btn btn-danger"
+                        style={{ padding: '0.25rem 0.5rem', opacity: member.paymentStatus === 'PAID' ? 0.5 : 1, cursor: member.paymentStatus === 'PAID' ? 'not-allowed' : 'pointer' }}
+                        disabled={member.paymentStatus === 'PAID'}
+                        onClick={() => {
+                          if (member.paymentStatus === 'PAID') {
+                            alert('결제가 완료된 회원은 삭제할 수 없습니다. 결제를 취소한 후 시도해주세요.');
+                            return;
+                          }
+                          handleRemoveMember(selectedMatch.id, member.id);
+                        }}
+                        title={member.paymentStatus === 'PAID' ? "결제 완료된 회원" : "매칭에서 제외"}
+                      >
+                        <UserMinus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Sub-Modal */}
+      {isAddModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 60 }} onClick={() => setIsAddModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="text-lg font-semibold">회원 선택</h3>
+              <button className="close-button" onClick={() => setIsAddModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-secondary text-sm">이 매칭에 추가할 회원을 선택해주세요.</p>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={includeOtherManagers} 
+                    onChange={(e) => setIncludeOtherManagers(e.target.checked)} 
+                  />
+                  <span>타 담당자 회원 포함하기</span>
+                </label>
+              </div>
+              
+              <div className="list-container gap-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {allMembers
+                  .filter(m => includeOtherManagers || m.managerName === getCurrentUser())
+                  .map((member) => {
+                  const isAlreadyAdded = selectedMatch?.members.some((m: any) => m.id === member.id);
+                  
+                  return (
+                    <div 
+                      key={member.id} 
+                      className="list-item card" 
+                      style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: isAlreadyAdded ? 'not-allowed' : 'pointer', opacity: isAlreadyAdded ? 0.5 : 1, marginBottom: '0.5rem' }}
+                      onClick={() => !isAlreadyAdded && handleConfirmAddMember(member)}
+                    >
+                      <div className="flex gap-4 items-center">
+                        {selectedMatch && renderScoreBadge(getMockScore(selectedMatch.id, member.id), isAlreadyAdded ? 0.5 : 1)}
+                        <div>
+                          <div className="font-semibold flex items-center gap-2">
+                            {member.name} <span className="text-sm font-normal text-secondary">({member.gender}, {member.age}세)</span>
+                            {member.managerName !== getCurrentUser() && (
+                              <span className="badge" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', backgroundColor: '#f3f4f6', color: '#4b5563', borderRadius: '4px' }}>
+                                {member.managerName}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-secondary">{member.job}</div>
+                        </div>
+                      </div>
+                      <div className="text-primary text-sm font-semibold">
+                        {isAlreadyAdded ? '추가됨' : '선택'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Match Modal */}
+      {isCreateMatchModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsCreateMatchModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="text-lg font-semibold">새 매칭 추가</h3>
+              <button className="close-button" onClick={() => setIsCreateMatchModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <form onSubmit={handleCreateMatch}>
+                <div className="form-group mb-6">
+                  <label className="form-label" htmlFor="matchTitle">매칭 제목</label>
+                  <input 
+                    type="text" 
+                    id="matchTitle" 
+                    className="form-input" 
+                    placeholder="예: 20대 대학생 매칭" 
+                    value={newMatchTitle}
+                    onChange={(e) => setNewMatchTitle(e.target.value)}
+                    required 
+                    autoFocus
+                  />
+                </div>
+                
+                <div className="form-group mb-6">
+                  <label className="form-label">매칭 주제 (최대 3개)</label>
+                  <div className="flex gap-2 mb-2">
+                    {[0, 1, 2].map(index => (
+                      <input 
+                        key={index}
+                        type="text" 
+                        className="form-input" 
+                        placeholder={`주제 ${index + 1}`} 
+                        value={newMatchThemes[index]}
+                        onChange={(e) => {
+                          const newThemes = [...newMatchThemes];
+                          newThemes[index] = e.target.value;
+                          setNewMatchThemes(newThemes);
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-secondary text-xs">입력된 주제를 기반으로 AI가 매칭 점수를 분석합니다.</p>
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  <button type="button" className="btn btn-outline" onClick={() => setIsCreateMatchModalOpen(false)}>
+                    취소
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    생성하기
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Member Detail Sub-Modal */}
+      {detailMember && (
+        <div className="modal-overlay" style={{ zIndex: 70 }} onClick={() => setDetailMember(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="text-lg font-semibold">회원 상세 정보</h3>
+              <button className="close-button" onClick={() => setDetailMember(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="flex flex-col gap-4">
+                <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="text-xl font-bold">{detailMember.name}</div>
+                    {detailMember.managerName && (
+                      <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                        담당: {detailMember.managerName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-secondary">{detailMember.gender} • {detailMember.age}세</div>
+                </div>
+                
+                <div className="grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <div className="text-sm text-secondary mb-1">직업</div>
+                    <div className="font-medium">{detailMember.job}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-secondary mb-1">연소득</div>
+                    <div className="font-medium">{detailMember.income ? `${detailMember.income} 만원` : '비공개'}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-secondary mb-1">취미</div>
+                  <div className="font-medium">{detailMember.hobby || '정보 없음'}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-secondary mb-1">이상형</div>
+                  <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem' }}>
+                    {detailMember.idealType || '정보 없음'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-secondary mb-1">자기소개</div>
+                  <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
+                    {detailMember.intro || '정보 없음'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
+                  <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+                    {detailMember.aiAnalysis || '분석 정보가 없습니다.'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-secondary mb-1 text-red-500 font-semibold">주의사항</div>
+                  <div style={{ backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#991b1b', border: '1px solid #fecaca' }}>
+                    {detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 80 }} onClick={() => setIsDeleteModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3 className="text-lg font-semibold text-red-600">매칭 삭제 확인</h3>
+              <button className="close-button" onClick={() => setIsDeleteModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body text-center py-6">
+              <p className="text-lg mb-2">정말로 이 매칭을 삭제하시겠습니까?</p>
+              <p className="text-sm text-secondary mb-8">이 작업은 되돌릴 수 없습니다.</p>
+              
+              <div className="flex justify-center gap-3">
+                <button 
+                  className="btn btn-outline" 
+                  style={{ minWidth: '100px' }}
+                  onClick={() => setIsDeleteModalOpen(false)}
+                >
+                  취소
+                </button>
+                <button 
+                  className="btn btn-danger" 
+                  style={{ minWidth: '100px', backgroundColor: '#ef4444', color: 'white' }}
+                  onClick={handleDeleteMatch}
+                >
+                  삭제하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
