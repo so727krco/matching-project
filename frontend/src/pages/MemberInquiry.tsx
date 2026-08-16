@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock } from 'lucide-react';
+import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock, UserCog } from 'lucide-react';
 import { getMembers, getCouples, setCouples, type Member, type Couple, getApprovalRequests, setApprovalRequests } from '../utils/storage';
+import { usePopup } from '../contexts/PopupContext';
 
 const CURRENT_MANAGER = '매니저A'; // Mock logged-in manager
 
@@ -11,10 +12,25 @@ export default function MemberInquiry() {
   const [couples, setCouplesList] = useState<Couple[]>([]);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
   const [approvals, setApprovals] = useState<any[]>([]); // To track approval status
+  const { showAlert, showConfirm } = usePopup();
+
+  const MOCK_MANAGERS = [
+    { id: 'M001', name: '매니저A' },
+    { id: 'M002', name: '매니저B' },
+    { id: 'M003', name: '매니저C' },
+    { id: 'M004', name: '매니저D' }
+  ];
 
   // Couple registration mode states
   const [isCoupleMode, setIsCoupleMode] = useState(false);
   const [selectedForCouple, setSelectedForCouple] = useState<Member[]>([]);
+
+  // Transfer Manager Mode states
+  const [isTransferMode, setIsTransferMode] = useState(false);
+  const [selectedForTransfer, setSelectedForTransfer] = useState<Member[]>([]);
+  const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+  const [managerSearchTerm, setManagerSearchTerm] = useState('');
+  const [selectedManager, setSelectedManager] = useState<any | null>(null);
 
   // Search Filters
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -58,7 +74,7 @@ export default function MemberInquiry() {
     };
     setApprovalRequests([...currentReqs, newReq]);
     setApprovals(getApprovalRequests());
-    alert(`${targetMember.managerName} 담당자에게 열람 승인 요청을 보냈습니다.`);
+    showAlert(`${targetMember.managerName} 담당자에게 열람 승인 요청을 보냈습니다.`);
   };
 
   const handleMemberClick = (member: Member) => {
@@ -71,38 +87,73 @@ export default function MemberInquiry() {
         if (selectedForCouple.length < 2) {
           setSelectedForCouple([...selectedForCouple, member]);
         } else {
-          alert('커플은 2명까지만 선택 가능합니다.');
+          showAlert('커플은 2명까지만 선택 가능합니다.');
         }
+      }
+    } else if (isTransferMode) {
+      if (selectedForTransfer.find(m => m.id === member.id)) {
+        setSelectedForTransfer(selectedForTransfer.filter(m => m.id !== member.id));
+      } else {
+        setSelectedForTransfer([...selectedForTransfer, member]);
       }
     } else {
       setDetailMember(member);
     }
   };
 
+  const handleTransferConfirm = () => {
+    if (!selectedManager) {
+      showAlert('담당 매니저를 선택해주세요.');
+      return;
+    }
+    
+    const currentReqs = getApprovalRequests();
+    const newReqs = selectedForTransfer.map((member, index) => ({
+      id: Date.now() + index,
+      type: 'TRANSFER' as const,
+      requesterName: CURRENT_MANAGER,
+      targetManagerName: selectedManager.name,
+      targetMemberId: member.id,
+      status: 'pending' as const,
+      requestDate: new Date().toISOString().split('T')[0]
+    }));
+    
+    setApprovalRequests([...currentReqs, ...newReqs]);
+    setApprovals(getApprovalRequests());
+    
+    showAlert(`선택한 담당자(${selectedManager.name})에게 담당 변경 승인 요청을 보냈습니다.`);
+    setIsManagerModalOpen(false);
+    setIsTransferMode(false);
+    setSelectedForTransfer([]);
+    setSelectedManager(null);
+    setManagerSearchTerm('');
+    
+    // 화면 새로고침
+    loadData();
+  };
+
   const handleRegisterCouple = () => {
     if (selectedForCouple.length !== 2) return;
     
-    if (!confirm(`${selectedForCouple[0].name}님과 ${selectedForCouple[1].name}님을 커플로 등록하시겠습니까?`)) {
-      return;
-    }
+    showConfirm(`${selectedForCouple[0].name}님과 ${selectedForCouple[1].name}님을 커플로 등록하시겠습니까?`, () => {
+      const newCouple: Couple = {
+        id: Date.now(),
+        member1: selectedForCouple[0],
+        member2: selectedForCouple[1],
+        date: new Date().toISOString().split('T')[0]
+      };
 
-    const newCouple: Couple = {
-      id: Date.now(),
-      member1: selectedForCouple[0],
-      member2: selectedForCouple[1],
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    const updatedCouples = [...couples, newCouple];
-    setCouples(updatedCouples);
-    setCouplesList(updatedCouples);
-    
-    // Update available members (remove the newly coupled members)
-    setMembersList(prev => prev.filter(m => m.id !== selectedForCouple[0].id && m.id !== selectedForCouple[1].id));
-    
-    setSelectedForCouple([]);
-    setIsCoupleMode(false);
-    alert('커플 등록이 완료되었습니다!');
+      const updatedCouples = [...couples, newCouple];
+      setCouples(updatedCouples);
+      setCouplesList(updatedCouples);
+      
+      // Update available members (remove the newly coupled members)
+      setMembersList(prev => prev.filter(m => m.id !== selectedForCouple[0].id && m.id !== selectedForCouple[1].id));
+      
+      setSelectedForCouple([]);
+      setIsCoupleMode(false);
+      showAlert('커플 등록이 완료되었습니다!');
+    });
   };
 
   const resetFilters = () => {
@@ -144,17 +195,38 @@ export default function MemberInquiry() {
             <p className="text-secondary text-sm">현재 솔로인 회원 목록입니다.</p>
             <p className="text-primary text-sm font-medium mt-1">커플로 등록된 회원은 커플조회에서 확인하세요.</p>
           </div>
-          <button 
-            className={`btn ${isCoupleMode ? 'btn-danger' : 'btn-primary'}`}
-            style={{ padding: '0.5rem 1rem' }}
-            onClick={() => {
-              setIsCoupleMode(!isCoupleMode);
-              setSelectedForCouple([]);
-            }}
-          >
-            <Heart size={16} />
-            {isCoupleMode ? '등록 취소' : '커플 등록'}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              className={`btn ${isTransferMode ? 'btn-danger' : 'btn-primary'}`}
+              style={{ padding: '0.5rem 1rem', backgroundColor: isTransferMode ? '#6b7280' : '#2563eb', color: 'white', border: 'none' }}
+              onClick={() => {
+                if (isCoupleMode) {
+                  setIsCoupleMode(false);
+                  setSelectedForCouple([]);
+                }
+                setIsTransferMode(!isTransferMode);
+                setSelectedForTransfer([]);
+              }}
+            >
+              <UserCog size={16} />
+              {isTransferMode ? '변경 취소' : '담당 변경'}
+            </button>
+            <button 
+              className={`btn ${isCoupleMode ? 'btn-danger' : 'btn-primary'}`}
+              style={{ padding: '0.5rem 1rem' }}
+              onClick={() => {
+                if (isTransferMode) {
+                  setIsTransferMode(false);
+                  setSelectedForTransfer([]);
+                }
+                setIsCoupleMode(!isCoupleMode);
+                setSelectedForCouple([]);
+              }}
+            >
+              <Heart size={16} />
+              {isCoupleMode ? '등록 취소' : '커플 등록'}
+            </button>
+          </div>
         </div>
 
         {/* Search Toggle Button */}
@@ -264,12 +336,37 @@ export default function MemberInquiry() {
           </div>
         )}
 
+        {isTransferMode && (
+          <div className="mb-4 p-4 rounded-lg flex items-center justify-between" style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412' }}>
+            <div className="text-sm">
+              담당자를 변경할 <strong>회원</strong>을 선택해주세요. <br/>
+              현재 선택: <strong>{selectedForTransfer.length}명</strong>
+            </div>
+            <button 
+              className="btn"
+              style={{ 
+                backgroundColor: selectedForTransfer.length > 0 ? '#f97316' : '#fdba74', 
+                color: '#fff',
+                padding: '0.5rem 1rem',
+                cursor: selectedForTransfer.length > 0 ? 'pointer' : 'not-allowed',
+                border: 'none'
+              }}
+              disabled={selectedForTransfer.length === 0}
+              onClick={() => setIsManagerModalOpen(true)}
+            >
+              담당 변경
+            </button>
+          </div>
+        )}
+
         <div className="list-container">
           {filteredMembers.length === 0 ? (
             <div className="text-center text-secondary py-12">표시할 회원이 없습니다.</div>
           ) : (
             filteredMembers.map((member) => {
-              const isSelected = selectedForCouple.some(m => m.id === member.id);
+              const isSelectedForCouple = selectedForCouple.some(m => m.id === member.id);
+              const isSelectedForTransfer = selectedForTransfer.some(m => m.id === member.id);
+              const isSelected = isSelectedForCouple || isSelectedForTransfer;
               
               return (
                 <div 
@@ -289,7 +386,9 @@ export default function MemberInquiry() {
                   <div className="flex items-center gap-4">
                     <div style={{ backgroundColor: isSelected ? 'var(--color-primary)' : 'hsl(210, 80%, 95%)', padding: '0.75rem', borderRadius: '50%', color: isSelected ? '#fff' : 'var(--color-info)' }}>
                       {isCoupleMode ? (
-                        isSelected ? <CheckCircle2 size={20} /> : <Heart size={20} />
+                        isSelectedForCouple ? <CheckCircle2 size={20} /> : <Heart size={20} />
+                      ) : isTransferMode ? (
+                        isSelectedForTransfer ? <CheckCircle2 size={20} /> : <UserCog size={20} />
                       ) : (
                         <Search size={20} />
                       )}
@@ -440,6 +539,80 @@ export default function MemberInquiry() {
                     {detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manager Transfer Modal */}
+      {isManagerModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 80 }} onClick={() => setIsManagerModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="text-lg font-semibold">담당자 선택</h3>
+              <button className="close-button" onClick={() => setIsManagerModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="mb-4">
+                <div className="form-group mb-0">
+                  <div className="relative" style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', backgroundColor: 'white' }}>
+                    <Search size={18} className="text-secondary mr-2" />
+                    <input 
+                      type="text" 
+                      placeholder="매니저 이름 또는 ID 검색" 
+                      style={{ border: 'none', outline: 'none', width: '100%' }}
+                      value={managerSearchTerm}
+                      onChange={(e) => setManagerSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="list-container" style={{ maxHeight: '300px', overflowY: 'auto', gap: '0.5rem' }}>
+                {MOCK_MANAGERS.filter(m => m.name.includes(managerSearchTerm) || m.id.includes(managerSearchTerm)).length === 0 && (
+                  <div className="text-center text-secondary py-4 text-sm">검색 결과가 없습니다.</div>
+                )}
+                {MOCK_MANAGERS.filter(m => m.name.includes(managerSearchTerm) || m.id.includes(managerSearchTerm)).map(manager => (
+                  <div 
+                    key={manager.id} 
+                    className="card list-item"
+                    style={{ 
+                      padding: '1rem', 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      cursor: 'pointer',
+                      border: selectedManager?.id === manager.id ? '2px solid #f97316' : '1px solid var(--color-border)',
+                      backgroundColor: selectedManager?.id === manager.id ? '#fff7ed' : 'white'
+                    }}
+                    onClick={() => setSelectedManager(manager)}
+                  >
+                    <div>
+                      <div className="font-semibold text-gray-800">{manager.name}</div>
+                      <div className="text-sm text-secondary">ID: {manager.id}</div>
+                    </div>
+                    {selectedManager?.id === manager.id && (
+                      <CheckCircle2 size={20} color="#f97316" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button className="btn btn-outline" onClick={() => setIsManagerModalOpen(false)}>
+                  취소
+                </button>
+                <button 
+                  className="btn" 
+                  style={{ backgroundColor: '#f97316', color: 'white', border: 'none', padding: '0.5rem 1rem' }}
+                  onClick={handleTransferConfirm}
+                >
+                  변경하기
+                </button>
               </div>
             </div>
           </div>

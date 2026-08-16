@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Check, X, UserSearch, UserPlus, Clock } from 'lucide-react';
-import { getApprovalRequests, setApprovalRequests, type ApprovalRequest, getMembers, getMatches, type Member, type Match } from '../utils/storage';
+import { ChevronLeft, Check, X, UserSearch, UserPlus, Clock, UserCog } from 'lucide-react';
+import { getApprovalRequests, setApprovalRequests, type ApprovalRequest, getMembers, setMembers as setStorageMembers, getMatches, setMatches as setStorageMatches, type Member, type Match } from '../utils/storage';
 
 const CURRENT_MANAGER = '매니저A';
 
 export default function ApprovalManagement() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'INFO_VIEW' | 'MATCH_INVITE'>('INFO_VIEW');
+  const [activeTab, setActiveTab] = useState<'INFO_VIEW' | 'MATCH_INVITE' | 'TRANSFER'>('INFO_VIEW');
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -28,9 +28,10 @@ export default function ApprovalManagement() {
     setApprovalRequests(updated);
     setRequests(updated.filter(req => req.targetManagerName === CURRENT_MANAGER));
     
-    // For MATCH_INVITE, we should also update the match member's approvalStatus to 'approved'.
     const req = allReqs.find(r => r.id === reqId);
-    if (req?.type === 'MATCH_INVITE' && req.matchId) {
+    if (!req) return;
+
+    if (req.type === 'MATCH_INVITE' && req.matchId) {
       const allMatches = getMatches();
       const matchIndex = allMatches.findIndex(m => m.id === req.matchId);
       if (matchIndex > -1) {
@@ -38,9 +39,18 @@ export default function ApprovalManagement() {
         const memIndex = match.members.findIndex(m => m.id === req.targetMemberId);
         if (memIndex > -1) {
           match.members[memIndex].approvalStatus = 'approved';
-          const { setMatches } = require('../utils/storage');
+          setStorageMatches([...allMatches]);
           setMatches([...allMatches]);
         }
+      }
+    } else if (req.type === 'TRANSFER') {
+      // Update managerName in Members
+      const allMembers = getMembers();
+      const memIndex = allMembers.findIndex(m => m.id === req.targetMemberId);
+      if (memIndex > -1) {
+        allMembers[memIndex].managerName = req.targetManagerName;
+        setStorageMembers([...allMembers]);
+        setMembers([...allMembers]);
       }
     }
   };
@@ -74,9 +84,18 @@ export default function ApprovalManagement() {
         const memIndex = match.members.findIndex(m => m.id === req.targetMemberId);
         if (memIndex > -1) {
           match.members[memIndex].approvalStatus = 'pending';
-          const { setMatches } = require('../utils/storage');
+          setStorageMatches([...allMatches]);
           setMatches([...allMatches]);
         }
+      }
+    } else if (req?.type === 'TRANSFER') {
+      const allMembers = getMembers();
+      const memIndex = allMembers.findIndex(m => m.id === req.targetMemberId);
+      if (memIndex > -1) {
+        // Rollback to requester
+        allMembers[memIndex].managerName = req.requesterName;
+        setStorageMembers([...allMembers]);
+        setMembers([...allMembers]);
       }
     }
     
@@ -89,9 +108,28 @@ export default function ApprovalManagement() {
 
   const infoViewPendingCount = requests.filter(req => req.type === 'INFO_VIEW' && req.status === 'pending').length;
   const matchInvitePendingCount = requests.filter(req => req.type === 'MATCH_INVITE' && req.status === 'pending').length;
+  const transferPendingCount = requests.filter(req => req.type === 'TRANSFER' && req.status === 'pending').length;
 
   const getMemberName = (id: number) => members.find(m => m.id === id)?.name || '알 수 없음';
   const getMatchTitle = (id?: number) => matches.find(m => m.id === id)?.title || '알 수 없는 매칭';
+
+  const getTypeLabel = (type: string) => {
+    switch(type) {
+      case 'INFO_VIEW': return '정보 열람';
+      case 'MATCH_INVITE': return '매칭 초대';
+      case 'TRANSFER': return '담당 변경';
+      default: return '기타';
+    }
+  };
+
+  const getTypeIcon = (type: string, size = 20) => {
+    switch(type) {
+      case 'INFO_VIEW': return <UserSearch size={size} />;
+      case 'MATCH_INVITE': return <UserPlus size={size} />;
+      case 'TRANSFER': return <UserCog size={size} />;
+      default: return <Check size={size} />;
+    }
+  };
 
   return (
     <div className="app-container bg-gray-50">
@@ -105,55 +143,75 @@ export default function ApprovalManagement() {
       </header>
 
       <div className="bg-white border-b sticky top-14 z-10 px-4 pt-10 pb-3">
-        <div className="flex gap-3" style={{ marginTop: '10pt' }}>
+        <div className="flex gap-2" style={{ marginTop: '10pt' }}>
+          {/* INFO_VIEW Tab */}
           <button 
             className={`flex-1 card border transition-all ${activeTab === 'INFO_VIEW' ? 'shadow-md' : 'bg-gray-50 hover:bg-white text-gray-500'}`}
             style={{ 
-              marginLeft: '10pt', padding: '10px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '8px', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               backgroundColor: activeTab === 'INFO_VIEW' ? '#f0f9ff' : undefined,
               borderColor: activeTab === 'INFO_VIEW' ? '#38bdf8' : undefined,
               boxShadow: activeTab === 'INFO_VIEW' ? '0 0 0 2px #38bdf8' : undefined
             }}
             onClick={() => setActiveTab('INFO_VIEW')}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="p-1 rounded-full" style={{ backgroundColor: activeTab === 'INFO_VIEW' ? '#0ea5e9' : '#e5e7eb', color: activeTab === 'INFO_VIEW' ? '#ffffff' : '#6b7280' }}>
-                <UserSearch size={22} />
-              </div>
-              <div style={{ color: activeTab === 'INFO_VIEW' ? '#0284c7' : '#6b7280', fontSize: '21pt', fontWeight: 500, lineHeight: 1 }}>
-                정보 열람 
-              </div>
+            <div className="p-1 rounded-full mb-1" style={{ backgroundColor: activeTab === 'INFO_VIEW' ? '#0ea5e9' : '#e5e7eb', color: activeTab === 'INFO_VIEW' ? '#ffffff' : '#6b7280' }}>
+              <UserSearch size={18} />
             </div>
-            
+            <div style={{ color: activeTab === 'INFO_VIEW' ? '#0284c7' : '#6b7280', fontSize: '12px', fontWeight: 500, lineHeight: 1, whiteSpace: 'nowrap' }}>
+              정보 열람 
+            </div>
             {infoViewPendingCount > 0 && (
-              <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '24px', height: '24px', padding: '0 6px', borderRadius: '9999px', backgroundColor: '#ef4444', color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
+              <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 4px', borderRadius: '9999px', backgroundColor: '#ef4444', color: 'white', fontSize: '11px', fontWeight: 'bold' }}>
                 {infoViewPendingCount}
               </div>
             )}
           </button>
           
+          {/* MATCH_INVITE Tab */}
           <button 
             className={`flex-1 card border transition-all ${activeTab === 'MATCH_INVITE' ? 'shadow-md' : 'bg-gray-50 hover:bg-white text-gray-500'}`}
             style={{ 
-              marginRight: '10pt', padding: '10px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '8px', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               backgroundColor: activeTab === 'MATCH_INVITE' ? '#f0f9ff' : undefined,
               borderColor: activeTab === 'MATCH_INVITE' ? '#38bdf8' : undefined,
               boxShadow: activeTab === 'MATCH_INVITE' ? '0 0 0 2px #38bdf8' : undefined
             }}
             onClick={() => setActiveTab('MATCH_INVITE')}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="p-1 rounded-full" style={{ backgroundColor: activeTab === 'MATCH_INVITE' ? '#0ea5e9' : '#e5e7eb', color: activeTab === 'MATCH_INVITE' ? '#ffffff' : '#6b7280' }}>
-                <UserPlus size={22} />
-              </div>
-              <div style={{ color: activeTab === 'MATCH_INVITE' ? '#0284c7' : '#6b7280', fontSize: '21pt', fontWeight: 500, lineHeight: 1 }}>
-                매칭 추가 
-              </div>
+            <div className="p-1 rounded-full mb-1" style={{ backgroundColor: activeTab === 'MATCH_INVITE' ? '#0ea5e9' : '#e5e7eb', color: activeTab === 'MATCH_INVITE' ? '#ffffff' : '#6b7280' }}>
+              <UserPlus size={18} />
             </div>
-
+            <div style={{ color: activeTab === 'MATCH_INVITE' ? '#0284c7' : '#6b7280', fontSize: '12px', fontWeight: 500, lineHeight: 1, whiteSpace: 'nowrap' }}>
+              매칭 초대 
+            </div>
             {matchInvitePendingCount > 0 && (
-              <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '24px', height: '24px', padding: '0 6px', borderRadius: '9999px', backgroundColor: '#ef4444', color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
+              <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 4px', borderRadius: '9999px', backgroundColor: '#ef4444', color: 'white', fontSize: '11px', fontWeight: 'bold' }}>
                 {matchInvitePendingCount}
+              </div>
+            )}
+          </button>
+
+          {/* TRANSFER Tab */}
+          <button 
+            className={`flex-1 card border transition-all ${activeTab === 'TRANSFER' ? 'shadow-md' : 'bg-gray-50 hover:bg-white text-gray-500'}`}
+            style={{ 
+              padding: '8px', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: activeTab === 'TRANSFER' ? '#f0f9ff' : undefined,
+              borderColor: activeTab === 'TRANSFER' ? '#38bdf8' : undefined,
+              boxShadow: activeTab === 'TRANSFER' ? '0 0 0 2px #38bdf8' : undefined
+            }}
+            onClick={() => setActiveTab('TRANSFER')}
+          >
+            <div className="p-1 rounded-full mb-1" style={{ backgroundColor: activeTab === 'TRANSFER' ? '#0ea5e9' : '#e5e7eb', color: activeTab === 'TRANSFER' ? '#ffffff' : '#6b7280' }}>
+              <UserCog size={18} />
+            </div>
+            <div style={{ color: activeTab === 'TRANSFER' ? '#0284c7' : '#6b7280', fontSize: '12px', fontWeight: 500, lineHeight: 1, whiteSpace: 'nowrap' }}>
+              담당 변경 
+            </div>
+            {transferPendingCount > 0 && (
+              <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 4px', borderRadius: '9999px', backgroundColor: '#ef4444', color: 'white', fontSize: '11px', fontWeight: 'bold' }}>
+                {transferPendingCount}
               </div>
             )}
           </button>
@@ -174,12 +232,12 @@ export default function ApprovalManagement() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-50 text-indigo-600 rounded-full">
-                      {req.type === 'INFO_VIEW' ? <UserSearch size={20} /> : <UserPlus size={20} />}
+                      {getTypeIcon(req.type, 20)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                          {req.type === 'INFO_VIEW' ? '정보 열람' : '매칭 초대'}
+                          {getTypeLabel(req.type)}
                         </span>
                         <div className="text-sm text-secondary">
                           <span className="font-semibold text-gray-900">{req.requesterName}</span> 님이 요청했습니다.
@@ -219,7 +277,7 @@ export default function ApprovalManagement() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                      {req.type === 'INFO_VIEW' ? '정보 열람' : '매칭 초대'}
+                      {getTypeLabel(req.type)}
                     </span>
                     <div className="text-sm">{req.requesterName} → {getMemberName(req.targetMemberId)}</div>
                   </div>
@@ -252,12 +310,12 @@ export default function ApprovalManagement() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-50 text-indigo-600 rounded-full">
-                      {req.type === 'INFO_VIEW' ? <UserSearch size={20} /> : <UserPlus size={20} />}
+                      {getTypeIcon(req.type, 20)}
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                          {req.type === 'INFO_VIEW' ? '정보 열람' : '매칭 초대'}
+                          {getTypeLabel(req.type)}
                         </span>
                         <div className="text-sm text-secondary">
                           <span className="font-semibold text-gray-900">{req.requesterName}</span> 님의 요청

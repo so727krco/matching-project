@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, X, Heart } from 'lucide-react';
 import { getCouples, setCouples as saveCouples, getMatches, type Couple, type Match } from '../utils/storage';
+import { usePopup } from '../contexts/PopupContext';
 
 export default function CoupleInquiry() {
   const navigate = useNavigate();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [allMatches, setAllMatches] = useState<Match[]>([]);
   const [selectedCouple, setSelectedCouple] = useState<Couple | null>(null);
+  const { showConfirm } = usePopup();
 
   useEffect(() => {
     setCouples(getCouples());
@@ -22,12 +24,12 @@ export default function CoupleInquiry() {
   };
 
   const handleBreakup = (coupleId: number) => {
-    if (confirm('정말로 커플을 해제하시겠습니까? 해제된 회원은 다시 솔로 리스트에 나타납니다.')) {
+    showConfirm('정말로 커플을 해제하시겠습니까? 해제된 회원은 다시 솔로 리스트에 나타납니다.', () => {
       const updatedCouples = couples.filter(c => c.id !== coupleId);
       setCouples(updatedCouples);
       saveCouples(updatedCouples);
       setSelectedCouple(null);
-    }
+    });
   };
 
   return (

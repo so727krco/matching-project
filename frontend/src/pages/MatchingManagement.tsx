@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Users, UserMinus, UserPlus, X, Plus, Trash2 } from 'lucide-react';
-import { getMembers, getMatches, setMatches as saveMatches, getCouples, getCurrentUser, type Member, type Match, type MatchMember } from '../utils/storage';
+import { ChevronLeft, Users, UserMinus, Plus, Trash2, X, UserPlus } from 'lucide-react';
+import { getMatches, setMatches as saveMatches, getMembers, getCouples, type Match, type MatchMember, type Member } from '../utils/storage';
+import { getCurrentUser } from '../utils/storage';
+import { usePopup } from '../contexts/PopupContext';
 
 // Mock Data
 const getMockScore = (matchId: number, memberId: number) => {
@@ -51,6 +53,8 @@ export default function MatchingManagement() {
   const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [matchToDelete, setMatchToDelete] = useState<number | null>(null);
+
+  const { showAlert, showConfirm } = usePopup();
   const [newMatchTitle, setNewMatchTitle] = useState('');
   const [newMatchThemes, setNewMatchThemes] = useState<string[]>(['', '', '']);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
@@ -70,7 +74,7 @@ export default function MatchingManagement() {
 
   const handleRemoveMember = (matchId: number, memberId: number) => {
     // 실제로는 백엔드 API를 호출합니다.
-    if (confirm('이 회원을 현재 매칭에서 삭제하시겠습니까?')) {
+    showConfirm('이 회원을 현재 매칭에서 삭제하시겠습니까?', () => {
       const updatedMatches = matches.map(match => {
         if (match.id === matchId) {
           return { ...match, members: match.members.filter(m => m.id !== memberId) };
@@ -86,7 +90,7 @@ export default function MatchingManagement() {
           members: selectedMatch.members.filter((m) => m.id !== memberId)
         });
       }
-    }
+    });
   };
 
   const confirmDeleteMatch = (matchId: number) => {
@@ -143,7 +147,7 @@ export default function MatchingManagement() {
     
     // 중복 체크
     if (selectedMatch.members.some((m: any) => m.id === member.id)) {
-      alert('이미 이 매칭에 포함된 회원입니다.');
+      showAlert('이미 이 매칭에 포함된 회원입니다.');
       return;
     }
 
@@ -353,7 +357,7 @@ export default function MatchingManagement() {
                         disabled={member.paymentStatus === 'PAID'}
                         onClick={() => {
                           if (member.paymentStatus === 'PAID') {
-                            alert('결제가 완료된 회원은 삭제할 수 없습니다. 결제를 취소한 후 시도해주세요.');
+                            showAlert('결제가 완료된 회원은 삭제할 수 없습니다. 결제를 취소한 후 시도해주세요.');
                             return;
                           }
                           handleRemoveMember(selectedMatch.id, member.id);

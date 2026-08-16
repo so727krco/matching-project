@@ -1,14 +1,17 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import { usePopup } from '../contexts/PopupContext';
 
 export default function SignupScreen() {
   const navigate = useNavigate();
+  const { showAlert } = usePopup();
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     // 회원가입 처리 로직 (Mock)
-    alert('회원가입이 완료되었습니다. 로그인 해주세요.');
-    navigate('/login');
+    showAlert('회원가입이 완료되었습니다. 로그인 해주세요.', () => {
+      navigate('/login');
+    });
   };
 
   return (

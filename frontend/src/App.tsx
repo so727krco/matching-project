@@ -14,25 +14,29 @@ import CoupleInquiry from './pages/CoupleInquiry';
 import AdminDashboard from './pages/AdminDashboard';
 import ApprovalManagement from './pages/ApprovalManagement';
 
+import { PopupProvider } from './contexts/PopupContext';
+
 function App() {
   return (
-    <Router>
-      <div className="app-container">
-        <Routes>
-          <Route path="/" element={<InitialScreen />} />
-          <Route path="/login" element={<LoginScreen />} />
-          <Route path="/signup" element={<SignupScreen />} />
-          <Route path="/main" element={<MainScreen />} />
-          <Route path="/register" element={<MemberRegistration />} />
-          <Route path="/matching" element={<MemberMatching />} />
-          <Route path="/manage" element={<MatchingManagement />} />
-          <Route path="/members" element={<MemberInquiry />} />
-          <Route path="/couples" element={<CoupleInquiry />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/approvals" element={<ApprovalManagement />} />
-        </Routes>
-      </div>
-    </Router>
+    <PopupProvider>
+      <Router>
+        <div className="app-container">
+          <Routes>
+            <Route path="/" element={<InitialScreen />} />
+            <Route path="/login" element={<LoginScreen />} />
+            <Route path="/signup" element={<SignupScreen />} />
+            <Route path="/main" element={<MainScreen />} />
+            <Route path="/register" element={<MemberRegistration />} />
+            <Route path="/matching" element={<MemberMatching />} />
+            <Route path="/manage" element={<MatchingManagement />} />
+            <Route path="/members" element={<MemberInquiry />} />
+            <Route path="/couples" element={<CoupleInquiry />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/approvals" element={<ApprovalManagement />} />
+          </Routes>
+        </div>
+      </Router>
+    </PopupProvider>
   );
 }
 

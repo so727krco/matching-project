@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { getMatches, setMatches, getMembers, getCurrentUser } from '../utils/storage';
+import { usePopup } from '../contexts/PopupContext';
 
 export default function MemberMatching() {
   const navigate = useNavigate();
+  const { showAlert } = usePopup();
   const [isMatching, setIsMatching] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -60,8 +62,9 @@ export default function MemberMatching() {
       }
       
       setIsMatching(false);
-      alert('매칭이 완료되었습니다! 매칭 관리에서 확인해주세요.');
-      navigate('/manage');
+      showAlert('매칭이 완료되었습니다! 매칭 관리에서 확인해주세요.', () => {
+        navigate('/manage');
+      });
     }, 2500);
   };
 

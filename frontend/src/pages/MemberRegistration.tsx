@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, X, ShieldCheck } from 'lucide-react';
+import { usePopup } from '../contexts/PopupContext';
 
 type PhotoStatus = 'verifying' | 'success' | 'fail_no_face' | 'fail_mismatch';
 
 export default function MemberRegistration() {
   const navigate = useNavigate();
+  const { showAlert } = usePopup();
   const [idealType, setIdealType] = useState('');
   const [intro, setIntro] = useState('');
   const [humanCaution, setHumanCaution] = useState('');
@@ -34,7 +36,7 @@ export default function MemberRegistration() {
     const filesArray = Array.from(e.target.files);
     
     if (photos.length + filesArray.length > 5) {
-      alert('사진은 최대 5장까지만 업로드할 수 있습니다.');
+      showAlert('사진은 최대 5장까지만 업로드할 수 있습니다.');
       return;
     }
 
@@ -79,16 +81,17 @@ export default function MemberRegistration() {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (photos.some(p => p.status === 'verifying')) {
-      alert('AI 사진 검증이 진행 중입니다. 잠시 후 다시 시도해주세요.');
+      showAlert('AI 사진 검증이 진행 중입니다. 잠시 후 다시 시도해주세요.');
       return;
     }
     if (photos.some(p => p.status.startsWith('fail'))) {
-      alert('검증에 실패한 사진이 있습니다. 삭제 후 다시 업로드해주세요.');
+      showAlert('검증에 실패한 사진이 있습니다. 삭제 후 다시 업로드해주세요.');
       return;
     }
     
-    alert('회원이 성공적으로 등록되었습니다.');
-    navigate('/main');
+    showAlert('회원이 성공적으로 등록되었습니다.', () => {
+      navigate('/main');
+    });
   };
 
   return (

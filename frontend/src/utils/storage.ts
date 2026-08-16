@@ -109,7 +109,7 @@ export const setCouples = (couples: Couple[]) => {
   localStorage.setItem('couples_v2', JSON.stringify(couples));
 };
 
-export type ApprovalType = 'INFO_VIEW' | 'MATCH_INVITE';
+export type ApprovalType = 'INFO_VIEW' | 'MATCH_INVITE' | 'TRANSFER';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ApprovalRequest {
