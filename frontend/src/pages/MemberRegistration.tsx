@@ -8,6 +8,15 @@ type PhotoStatus = 'verifying' | 'success' | 'fail_no_face' | 'fail_mismatch';
 export default function MemberRegistration() {
   const navigate = useNavigate();
   const { showAlert } = usePopup();
+  
+  // States for basic info
+  const [name, setName] = useState('');
+  const [gender, setGender] = useState('');
+  const [age, setAge] = useState('');
+  const [job, setJob] = useState('');
+  const [income, setIncome] = useState('');
+  const [hobby, setHobby] = useState('');
+  
   const [idealType, setIdealType] = useState('');
   const [intro, setIntro] = useState('');
   const [humanCaution, setHumanCaution] = useState('');
@@ -78,7 +87,7 @@ export default function MemberRegistration() {
     setPhotos(prev => prev.filter(p => p.id !== id));
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (photos.some(p => p.status === 'verifying')) {
       showAlert('AI 사진 검증이 진행 중입니다. 잠시 후 다시 시도해주세요.');
@@ -89,15 +98,66 @@ export default function MemberRegistration() {
       return;
     }
     
-    showAlert('회원이 성공적으로 등록되었습니다.', () => {
-      navigate('/main');
-    });
+    const hasPhone = phone && phone.trim().length > 0;
+    const hasKakao = kakaoId && kakaoId.trim().length > 0;
+    
+    if (!hasPhone && !hasKakao) {
+      showAlert('휴대전화번호 또는 카카오톡 ID 중 하나는 필수입니다.');
+      return;
+    }
+
+    const managerId = localStorage.getItem('managerId');
+    if (!managerId) {
+      showAlert('로그인이 필요합니다.');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: name,
+        gender: gender === 'male' ? 'M' : 'F',
+        age: parseInt(age, 10),
+        height: 0, // Not explicitly asked in this form mockup
+        job: job,
+        salary: income ? parseInt(income, 10) : 0,
+        phoneNumber: phone,
+        kakaoId: kakaoId,
+        hobbies: hobby,
+        idealType: idealType,
+        introduction: intro,
+        remarks: humanCaution,
+        imageUrl1: photos[0]?.url || null,
+        imageUrl2: photos[1]?.url || null,
+        imageUrl3: photos[2]?.url || null,
+        imageUrl4: photos[3]?.url || null,
+        imageUrl5: photos[4]?.url || null,
+        managerId: parseInt(managerId, 10)
+      };
+
+      const response = await fetch('http://localhost:8080/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorMsg = await response.text();
+        throw new Error(errorMsg);
+      }
+
+      showAlert('회원이 성공적으로 등록되었습니다.', () => {
+        navigate('/main');
+      });
+    } catch (error: any) {
+      showAlert(error.message || '등록 중 오류가 발생했습니다.');
+    }
   };
 
   return (
     <div className="app-container bg-gray-50">
       <header className="app-header">
-        <button className="back-button" onClick={() => navigate('/main')}>
+        <button className="back-button" onClick={() => navigate('/main')} type="button">
           <ChevronLeft size={20} />
           <span>메인으로</span>
         </button>
@@ -115,13 +175,13 @@ export default function MemberRegistration() {
             <h3 className="font-semibold text-lg mb-4 pb-2 border-b">1. 기본 정보</h3>
             <div className="form-group">
               <label className="form-label" htmlFor="name">이름</label>
-              <input type="text" id="name" className="form-input" placeholder="홍길동" required />
+              <input type="text" id="name" className="form-input" placeholder="홍길동" value={name} onChange={e => setName(e.target.value)} required />
             </div>
 
             <div className="form-group" style={{ flexDirection: 'row', gap: 'var(--spacing-4)' }}>
               <div style={{ flex: 1 }}>
                 <label className="form-label" htmlFor="gender">성별</label>
-                <select id="gender" className="form-select" defaultValue="" required>
+                <select id="gender" className="form-select" value={gender} onChange={e => setGender(e.target.value)} required>
                   <option value="" disabled>선택하세요</option>
                   <option value="male">남성</option>
                   <option value="female">여성</option>
@@ -129,19 +189,19 @@ export default function MemberRegistration() {
               </div>
               <div style={{ flex: 1 }}>
                 <label className="form-label" htmlFor="age">나이</label>
-                <input type="number" id="age" className="form-input" placeholder="30" required min="18" max="100" />
+                <input type="number" id="age" className="form-input" placeholder="30" value={age} onChange={e => setAge(e.target.value)} required min="18" max="100" />
               </div>
             </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="job">직업</label>
-              <input type="text" id="job" className="form-input" placeholder="개발자" required />
+              <input type="text" id="job" className="form-input" placeholder="개발자" value={job} onChange={e => setJob(e.target.value)} required />
             </div>
 
             <div className="form-group mb-8">
               <label className="form-label" htmlFor="income">연소득</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                <input type="number" id="income" className="form-input" placeholder="5000" required min="0" style={{ flex: 1 }} />
+                <input type="number" id="income" className="form-input" placeholder="5000" value={income} onChange={e => setIncome(e.target.value)} required min="0" style={{ flex: 1 }} />
                 <span className="text-secondary text-sm flex-shrink-0">만원</span>
               </div>
             </div>
@@ -150,12 +210,12 @@ export default function MemberRegistration() {
             <h3 className="font-semibold text-lg mb-4 pb-2 border-b">2. 연락처 (알림톡/매칭 진행용)</h3>
             <div className="form-group" style={{ flexDirection: 'row', gap: 'var(--spacing-4)' }}>
               <div style={{ flex: 1 }}>
-                <label className="form-label" htmlFor="phone">휴대전화번호</label>
-                <input type="tel" id="phone" className="form-input" placeholder="010-0000-0000" value={phone} onChange={e => setPhone(e.target.value)} required />
+                <label className="form-label" htmlFor="phone">휴대전화번호 (또는 카톡 필수)</label>
+                <input type="tel" id="phone" className="form-input" placeholder="010-0000-0000" value={phone} onChange={e => setPhone(e.target.value)} />
               </div>
               <div style={{ flex: 1 }}>
-                <label className="form-label" htmlFor="kakaoId">카카오톡 ID</label>
-                <input type="text" id="kakaoId" className="form-input" placeholder="ID 입력" value={kakaoId} onChange={e => setKakaoId(e.target.value)} required />
+                <label className="form-label" htmlFor="kakaoId">카카오톡 ID (또는 전화 필수)</label>
+                <input type="text" id="kakaoId" className="form-input" placeholder="ID 입력" value={kakaoId} onChange={e => setKakaoId(e.target.value)} />
               </div>
             </div>
 
@@ -195,7 +255,6 @@ export default function MemberRegistration() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {photos.map((photo, index) => (
                       <div key={photo.id} className="relative border rounded-lg overflow-hidden bg-gray-50 flex flex-col" style={{ aspectRatio: '3/4' }}>
-                        {/* Remove button */}
                         <button 
                           type="button"
                           className="absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full p-1 z-10 hover:bg-red-500"
@@ -203,10 +262,7 @@ export default function MemberRegistration() {
                         >
                           <X size={14} />
                         </button>
-
                         <img src={photo.url} alt={`Preview ${index}`} className="w-full h-full object-cover" style={{ filter: photo.status === 'verifying' ? 'blur(2px)' : 'none' }} />
-                        
-                        {/* AI Status Overlay */}
                         <div className="absolute inset-x-0 bottom-0 p-2 text-xs flex items-center justify-center font-medium" style={{
                           backgroundColor: 
                             photo.status === 'verifying' ? 'rgba(0,0,0,0.6)' :
@@ -231,7 +287,7 @@ export default function MemberRegistration() {
             
             <div className="form-group">
               <label className="form-label" htmlFor="hobby">취미</label>
-              <input type="text" id="hobby" className="form-input" placeholder="독서, 영화감상" required />
+              <input type="text" id="hobby" className="form-input" placeholder="독서, 영화감상" value={hobby} onChange={e => setHobby(e.target.value)} required />
             </div>
 
             <div className="form-group">
@@ -296,6 +352,7 @@ export default function MemberRegistration() {
                   setHumanCaution(e.target.value);
                   handleResize(humanCautionRef as React.RefObject<HTMLTextAreaElement>);
                 }}
+                required
               />
             </div>
             

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock, UserCog } from 'lucide-react';
-import { getMembers, getCouples, setCouples, type Member, type Couple, getApprovalRequests, setApprovalRequests } from '../utils/storage';
+import { getCouples, setCouples, type Member, type Couple, getApprovalRequests, setApprovalRequests } from '../utils/storage';
 import { usePopup } from '../contexts/PopupContext';
 
 const CURRENT_MANAGER = '매니저A'; // Mock logged-in manager
@@ -40,21 +40,40 @@ export default function MemberInquiry() {
     minAge: '',
     maxAge: '',
     minIncome: '',
-    managerName: ''
+    managerEmpNo: ''
   });
 
-  const loadData = () => {
-    const allMembers = getMembers();
-    const allCouples = getCouples();
-    
-    // Filter out members who are already in a couple
-    const availableMembers = allMembers.filter(m => {
-      return !allCouples.some(c => c.member1.id === m.id || c.member2.id === m.id);
-    });
-    
-    setMembersList(availableMembers);
-    setCouplesList(allCouples);
-    setApprovals(getApprovalRequests());
+  const loadData = async () => {
+    try {
+      // Build query string from searchFilters
+      const params = new URLSearchParams();
+      if (searchFilters.name) params.append('name', searchFilters.name);
+      if (searchFilters.gender && searchFilters.gender !== '전체') {
+        params.append('gender', searchFilters.gender === '남성' ? 'M' : 'F');
+      }
+      if (searchFilters.minAge) params.append('minAge', searchFilters.minAge);
+      if (searchFilters.maxAge) params.append('maxAge', searchFilters.maxAge);
+      if (searchFilters.minIncome) params.append('minSalary', searchFilters.minIncome);
+      if (searchFilters.managerEmpNo) params.append('managerEmpNo', searchFilters.managerEmpNo);
+
+      const response = await fetch(`http://localhost:8080/api/members/search?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch members');
+      const allMembers = await response.json();
+
+      const allCouples = getCouples();
+      
+      // Filter out members who are already in a couple (frontend side for now, or backend later)
+      const availableMembers = allMembers.filter((m: any) => {
+        return !allCouples.some(c => c.member1.id === m.id || c.member2.id === m.id);
+      });
+      
+      setMembersList(availableMembers);
+      setCouplesList(allCouples);
+      setApprovals(getApprovalRequests());
+    } catch (error) {
+      console.error(error);
+      showAlert('회원 목록을 불러오는데 실패했습니다.');
+    }
   };
 
   useEffect(() => {
@@ -167,15 +186,13 @@ export default function MemberInquiry() {
     });
   };
 
-  const filteredMembers = members.filter(member => {
-    if (searchFilters.name && !member.name.includes(searchFilters.name)) return false;
-    if (searchFilters.gender !== '전체' && member.gender !== searchFilters.gender) return false;
-    if (searchFilters.minAge && member.age < parseInt(searchFilters.minAge)) return false;
-    if (searchFilters.maxAge && member.age > parseInt(searchFilters.maxAge)) return false;
-    if (searchFilters.minIncome && (member.income || 0) < parseInt(searchFilters.minIncome)) return false;
-    if (searchFilters.managerName && (!member.managerName || !member.managerName.includes(searchFilters.managerName))) return false;
-    return true;
-  });
+  const handleSearch = () => {
+    loadData();
+  };
+
+  // We can just use the server-fetched members directly. 
+  // Client-side filtering is no longer needed since backend does it.
+  const filteredMembers = members;
 
   return (
     <div className="app-container bg-gray-50 pb-20">
@@ -298,18 +315,19 @@ export default function MemberInquiry() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label text-xs">담당 매니저</label>
+                <label className="form-label text-xs">담당 매니저 (사번)</label>
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="예: 매니저A" 
-                  value={searchFilters.managerName}
-                  onChange={(e) => setSearchFilters({...searchFilters, managerName: e.target.value})}
+                  placeholder="예: M001" 
+                  value={searchFilters.managerEmpNo}
+                  onChange={(e) => setSearchFilters({...searchFilters, managerEmpNo: e.target.value})}
                 />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button className="btn btn-outline" style={{ padding: '0.4rem 1rem' }} onClick={resetFilters}>초기화</button>
+              <button className="btn btn-primary" style={{ padding: '0.4rem 1rem' }} onClick={handleSearch}>검색</button>
             </div>
           </div>
         )}
@@ -398,9 +416,9 @@ export default function MemberInquiry() {
                       <div className="text-sm text-secondary mt-1">{member.job}</div>
                     </div>
                   </div>
-                  {member.managerName && (
+                  {member.manager?.name && (
                     <div className="badge" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', backgroundColor: '#e0e7ff', color: '#3730a3', borderRadius: '4px', whiteSpace: 'nowrap' }}>
-                      {member.managerName} 담당
+                      {member.manager.name} 담당
                     </div>
                   )}
                 </div>
@@ -426,9 +444,9 @@ export default function MemberInquiry() {
                 <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                   <div className="flex justify-between items-start mb-1">
                     <div className="text-xl font-bold">{detailMember.name}</div>
-                    {detailMember.managerName && (
+                    {detailMember.manager?.name && (
                       <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                        담당: {detailMember.managerName}
+                        담당: {detailMember.manager.name}
                       </span>
                     )}
                   </div>
@@ -442,7 +460,7 @@ export default function MemberInquiry() {
                   </div>
                   <div>
                     <div className="text-sm text-secondary mb-1">연소득</div>
-                    <div className="font-medium">{detailMember.income ? `${detailMember.income} 만원` : '비공개'}</div>
+                    <div className="font-medium">{detailMember.salary ? `${detailMember.salary} 만원` : '비공개'}</div>
                   </div>
                 </div>
 
@@ -454,7 +472,7 @@ export default function MemberInquiry() {
                   </div>
                   
                   {(() => {
-                    const hasAccess = detailMember.managerName === CURRENT_MANAGER;
+                    const hasAccess = detailMember.manager?.name === CURRENT_MANAGER;
                     const req = approvals.find(r => r.type === 'INFO_VIEW' && r.targetMemberId === detailMember.id && r.requesterName === CURRENT_MANAGER);
                     const isApproved = req?.status === 'approved';
                     const isPending = req?.status === 'pending';
@@ -465,7 +483,7 @@ export default function MemberInquiry() {
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="text-secondary mr-2">연락처:</span>
-                              <span className="font-medium">{detailMember.phone || '010-1234-5678'}</span>
+                              <span className="font-medium">{detailMember.phoneNumber || '010-1234-5678'}</span>
                             </div>
                             <div>
                               <span className="text-secondary mr-2">카톡ID:</span>
@@ -493,7 +511,7 @@ export default function MemberInquiry() {
                     return (
                       <div className="text-center py-4 text-sm text-secondary flex flex-col items-center gap-2">
                         <Lock size={24} className="text-gray-300" />
-                        <span>{detailMember.managerName} 매니저만 열람할 수 있는 민감 정보입니다.</span>
+                        <span>{detailMember.manager?.name} 매니저만 열람할 수 있는 민감 정보입니다.</span>
                         <button 
                           className="mt-2 btn btn-outline disabled:opacity-50" 
                           style={{ borderColor: isPending ? '#9ca3af' : 'var(--color-primary)', color: isPending ? '#9ca3af' : 'var(--color-primary)', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
@@ -509,7 +527,7 @@ export default function MemberInquiry() {
 
                 <div>
                   <div className="text-sm text-secondary mb-1">취미</div>
-                  <div className="font-medium">{detailMember.hobby || '정보 없음'}</div>
+                  <div className="font-medium">{detailMember.hobbies || '정보 없음'}</div>
                 </div>
 
                 <div>
@@ -522,7 +540,7 @@ export default function MemberInquiry() {
                 <div>
                   <div className="text-sm text-secondary mb-1">자기소개</div>
                   <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
-                    {detailMember.intro || '정보 없음'}
+                    {detailMember.introduction || '정보 없음'}
                   </div>
                 </div>
 
@@ -536,7 +554,7 @@ export default function MemberInquiry() {
                 <div>
                   <div className="text-sm text-secondary mb-1 text-red-500 font-semibold">주의사항</div>
                   <div style={{ backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#991b1b', border: '1px solid #fecaca' }}>
-                    {detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
+                    {detailMember.remarks || '입력된 주의사항이 없습니다.'}
                   </div>
                 </div>
               </div>
