@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+.gradle/
+.idea/
+*.class
+*.jar
+*.war
+.env
+.DS_Store

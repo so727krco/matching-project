@@ -5,6 +5,7 @@ import './App.css';
 import InitialScreen from './pages/InitialScreen';
 import LoginScreen from './pages/LoginScreen';
 import SignupScreen from './pages/SignupScreen';
+import ResetPasswordScreen from './pages/ResetPasswordScreen';
 import MainScreen from './pages/MainScreen';
 import MemberRegistration from './pages/MemberRegistration';
 import MemberMatching from './pages/MemberMatching';
@@ -25,6 +26,7 @@ function App() {
             <Route path="/" element={<InitialScreen />} />
             <Route path="/login" element={<LoginScreen />} />
             <Route path="/signup" element={<SignupScreen />} />
+            <Route path="/reset-password" element={<ResetPasswordScreen />} />
             <Route path="/main" element={<MainScreen />} />
             <Route path="/register" element={<MemberRegistration />} />
             <Route path="/matching" element={<MemberMatching />} />

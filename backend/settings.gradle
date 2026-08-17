@@ -1,0 +1,4 @@
+rootProject.name = 'matching-backend'
+
+include 'backapp'
+include 'backmgr'
