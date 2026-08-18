@@ -1,21 +1,54 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, HeartHandshake, List, LogOut, Search, ShieldAlert } from 'lucide-react';
-import { getApprovalRequests } from '../utils/storage';
 
-const CURRENT_MANAGER = '매니저A';
+import { usePopup } from '../contexts/PopupContext';
+
+
 
 export default function MainScreen() {
   const navigate = useNavigate();
+  const { showAlert } = usePopup();
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const managerName = localStorage.getItem('managerName') || '매니저';
 
   useEffect(() => {
-    const reqs = getApprovalRequests().filter(r => r.targetManagerName === CURRENT_MANAGER && r.status === 'pending');
-    setPendingApprovals(reqs.length);
+    const managerId = localStorage.getItem('managerId');
+    if (managerId) {
+      fetch('http://localhost:8080/api/approvals?managerId=' + managerId)
+        .then(res => res.json())
+        .then(data => {
+          const count = data.filter((req: any) => req.status === 'PENDING').length;
+          setPendingApprovals(count);
+        })
+        .catch(err => console.error(err));
+    }
   }, []);
 
   const handleLogout = () => {
     navigate('/');
+  };
+
+  const handleAdminClick = async () => {
+    const managerId = localStorage.getItem('managerId');
+    if (!managerId) {
+      showAlert('로그인이 필요합니다.');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/managers/${managerId}/is-admin`);
+      if (!response.ok) throw new Error('권한 확인 실패');
+      
+      const isAdmin = await response.json();
+      if (!isAdmin) {
+        showAlert('관리자가 아닙니다.');
+        return;
+      }
+      navigate('/admin');
+    } catch (error) {
+      showAlert('관리자 권한을 확인할 수 없습니다.');
+    }
   };
 
   return (
@@ -26,7 +59,7 @@ export default function MainScreen() {
           HeartSync Admin
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-outline" style={{ padding: '0.25rem 0.75rem', borderColor: '#475569', color: '#475569' }} onClick={() => navigate('/admin')}>
+          <button className="btn btn-outline" style={{ padding: '0.25rem 0.75rem', borderColor: '#475569', color: '#475569' }} onClick={handleAdminClick}>
             <span className="text-sm">관리자 화면</span>
           </button>
           <button className="btn btn-outline" style={{ padding: '0.25rem 0.75rem' }} onClick={handleLogout}>
@@ -38,7 +71,7 @@ export default function MainScreen() {
       
       <main className="main-content" style={{ justifyContent: 'center' }}>
         <div className="text-center mb-8">
-          <h1 className="text-3xl mb-2">환영합니다</h1>
+          <h1 className="text-3xl mb-2">환영합니다, {managerName}님!</h1>
           <p className="text-secondary">원하시는 관리 메뉴를 선택해주세요.</p>
         </div>
 

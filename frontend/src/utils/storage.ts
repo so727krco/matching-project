@@ -11,6 +11,7 @@ export interface Member {
   humanCaution?: string;
   aiAnalysis?: string;
   managerName?: string;
+  manager?: { id: number; name: string };
   phone?: string;
   kakaoId?: string;
   photos?: string[]; // Array of base64 strings or URLs

@@ -35,4 +35,7 @@ public class Manager {
 
     @Column(columnDefinition = "TEXT")
     private String introduction;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean isAdmin = false;
 }

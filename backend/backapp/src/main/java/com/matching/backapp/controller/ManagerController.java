@@ -36,6 +36,7 @@ public class ManagerController {
             response.setEmpNo(registered.getEmpNo());
             response.setBirthDate(registered.getBirthDate());
             response.setIntroduction(registered.getIntroduction());
+            response.setIsAdmin(registered.getIsAdmin());
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -54,6 +55,7 @@ public class ManagerController {
             response.setId(manager.getId());
             response.setUsername(manager.getUsername());
             response.setName(manager.getName());
+            response.setIsAdmin(manager.getIsAdmin());
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -83,5 +85,11 @@ public class ManagerController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("아이디 확인 중 오류가 발생했습니다.");
         }
+    }
+
+    @GetMapping("/{id}/is-admin")
+    public ResponseEntity<Boolean> checkIsAdmin(@PathVariable Long id) {
+        boolean isAdmin = managerService.checkIsAdmin(id);
+        return ResponseEntity.ok(isAdmin);
     }
 }

@@ -42,7 +42,7 @@ public class ManagerService {
         }
 
         // Apply masking and hashing
-        manager.setName(SecurityUtil.maskName(manager.getName()));
+        // manager.setName(SecurityUtil.maskName(manager.getName()));
         manager.setPassword(SecurityUtil.hashPassword(manager.getPassword()));
 
         return managerRepository.save(manager);
@@ -74,5 +74,11 @@ public class ManagerService {
         }
 
         manager.setPassword(SecurityUtil.hashPassword(newPassword));
+    }
+
+    public boolean checkIsAdmin(Long id) {
+        return managerRepository.findById(id)
+                .map(Manager::getIsAdmin)
+                .orElse(false);
     }
 }

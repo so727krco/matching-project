@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock, UserCog } from 'lucide-react';
-import { getCouples, setCouples, type Member, type Couple, getApprovalRequests, setApprovalRequests } from '../utils/storage';
+import { getCouples, setCouples, type Member, type Couple, getApprovalRequests,  } from '../utils/storage';
 import { usePopup } from '../contexts/PopupContext';
 
 const CURRENT_MANAGER = '매니저A'; // Mock logged-in manager
@@ -80,20 +80,31 @@ export default function MemberInquiry() {
     loadData();
   }, []);
 
-  const handleRequestInfoView = (targetMember: Member) => {
-    const currentReqs = getApprovalRequests();
-    const newReq = {
-      id: Date.now(),
-      type: 'INFO_VIEW' as const,
-      requesterName: CURRENT_MANAGER,
-      targetManagerName: targetMember.managerName!,
-      targetMemberId: targetMember.id,
-      status: 'pending' as const,
-      requestDate: new Date().toISOString().split('T')[0]
-    };
-    setApprovalRequests([...currentReqs, newReq]);
-    setApprovals(getApprovalRequests());
-    showAlert(`${targetMember.managerName} 담당자에게 열람 승인 요청을 보냈습니다.`);
+  const handleRequestInfoView = async (targetMember: Member) => {
+    const managerId = localStorage.getItem('managerId');
+    if (!managerId || !targetMember.manager?.id) return;
+
+    try {
+      const res = await fetch('http://localhost:8080/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'INFO_VIEW',
+          requesterId: managerId,
+          targetManagerId: targetMember.manager.id,
+          targetMemberId: targetMember.id
+        })
+      });
+
+      if (res.ok) {
+        showAlert(`${targetMember.manager?.name} 담당자에게 열람 승인 요청을 보냈습니다.`);
+      } else {
+        showAlert('요청에 실패했습니다.');
+      }
+    } catch (e) {
+      console.error(e);
+      showAlert('요청 중 오류가 발생했습니다.');
+    }
   };
 
   const handleMemberClick = (member: Member) => {
@@ -120,35 +131,40 @@ export default function MemberInquiry() {
     }
   };
 
-  const handleTransferConfirm = () => {
-    if (!selectedManager) {
+  const handleTransferConfirm = async () => {
+    if (!selectedManager || selectedForTransfer.length === 0) {
       showAlert('담당 매니저를 선택해주세요.');
       return;
     }
     
-    const currentReqs = getApprovalRequests();
-    const newReqs = selectedForTransfer.map((member, index) => ({
-      id: Date.now() + index,
-      type: 'TRANSFER' as const,
-      requesterName: CURRENT_MANAGER,
-      targetManagerName: selectedManager.name,
-      targetMemberId: member.id,
-      status: 'pending' as const,
-      requestDate: new Date().toISOString().split('T')[0]
-    }));
-    
-    setApprovalRequests([...currentReqs, ...newReqs]);
-    setApprovals(getApprovalRequests());
-    
-    showAlert(`선택한 담당자(${selectedManager.name})에게 담당 변경 승인 요청을 보냈습니다.`);
-    setIsManagerModalOpen(false);
-    setIsTransferMode(false);
-    setSelectedForTransfer([]);
-    setSelectedManager(null);
-    setManagerSearchTerm('');
-    
-    // 화면 새로고침
-    loadData();
+    const managerId = localStorage.getItem('managerId');
+    if (!managerId) return;
+
+    try {
+      for (const member of selectedForTransfer) {
+        await fetch('http://localhost:8080/api/approvals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'TRANSFER',
+            requesterId: managerId,
+            targetManagerId: selectedManager.id,
+            targetMemberId: member.id
+          })
+        });
+      }
+      
+      showAlert(selectedManager.name + ' 담당자에게 담당 변경 승인 요청을 보냈습니다.');
+      setIsManagerModalOpen(false);
+      setIsTransferMode(false);
+      setSelectedForTransfer([]);
+      setSelectedManager(null);
+      setManagerSearchTerm('');
+      loadData();
+    } catch (e) {
+      console.error(e);
+      showAlert('담당 변경 요청 중 오류가 발생했습니다.');
+    }
   };
 
   const handleRegisterCouple = () => {
@@ -182,7 +198,7 @@ export default function MemberInquiry() {
       minAge: '',
       maxAge: '',
       minIncome: '',
-      managerName: ''
+      managerEmpNo: ''
     });
   };
 
@@ -444,9 +460,9 @@ export default function MemberInquiry() {
                 <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                   <div className="flex justify-between items-start mb-1">
                     <div className="text-xl font-bold">{detailMember.name}</div>
-                    {detailMember.manager?.name && (
+                    {detailMember.managerName && (
                       <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                        담당: {detailMember.manager.name}
+                        담당: {detailMember.managerName}
                       </span>
                     )}
                   </div>
@@ -460,7 +476,7 @@ export default function MemberInquiry() {
                   </div>
                   <div>
                     <div className="text-sm text-secondary mb-1">연소득</div>
-                    <div className="font-medium">{detailMember.salary ? `${detailMember.salary} 만원` : '비공개'}</div>
+                    <div className="font-medium">{detailMember.income ? `${detailMember.income} 만원` : '비공개'}</div>
                   </div>
                 </div>
 
@@ -472,7 +488,7 @@ export default function MemberInquiry() {
                   </div>
                   
                   {(() => {
-                    const hasAccess = detailMember.manager?.name === CURRENT_MANAGER;
+                    const hasAccess = detailMember.managerName === CURRENT_MANAGER;
                     const req = approvals.find(r => r.type === 'INFO_VIEW' && r.targetMemberId === detailMember.id && r.requesterName === CURRENT_MANAGER);
                     const isApproved = req?.status === 'approved';
                     const isPending = req?.status === 'pending';
@@ -483,7 +499,7 @@ export default function MemberInquiry() {
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="text-secondary mr-2">연락처:</span>
-                              <span className="font-medium">{detailMember.phoneNumber || '010-1234-5678'}</span>
+                              <span className="font-medium">{detailMember.phone || '010-1234-5678'}</span>
                             </div>
                             <div>
                               <span className="text-secondary mr-2">카톡ID:</span>
@@ -511,7 +527,7 @@ export default function MemberInquiry() {
                     return (
                       <div className="text-center py-4 text-sm text-secondary flex flex-col items-center gap-2">
                         <Lock size={24} className="text-gray-300" />
-                        <span>{detailMember.manager?.name} 매니저만 열람할 수 있는 민감 정보입니다.</span>
+                        <span>{detailMember.managerName} 매니저만 열람할 수 있는 민감 정보입니다.</span>
                         <button 
                           className="mt-2 btn btn-outline disabled:opacity-50" 
                           style={{ borderColor: isPending ? '#9ca3af' : 'var(--color-primary)', color: isPending ? '#9ca3af' : 'var(--color-primary)', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
@@ -527,7 +543,7 @@ export default function MemberInquiry() {
 
                 <div>
                   <div className="text-sm text-secondary mb-1">취미</div>
-                  <div className="font-medium">{detailMember.hobbies || '정보 없음'}</div>
+                  <div className="font-medium">{detailMember.hobby || '정보 없음'}</div>
                 </div>
 
                 <div>
@@ -540,7 +556,7 @@ export default function MemberInquiry() {
                 <div>
                   <div className="text-sm text-secondary mb-1">자기소개</div>
                   <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
-                    {detailMember.introduction || '정보 없음'}
+                    {detailMember.intro || '정보 없음'}
                   </div>
                 </div>
 
@@ -554,7 +570,7 @@ export default function MemberInquiry() {
                 <div>
                   <div className="text-sm text-secondary mb-1 text-red-500 font-semibold">주의사항</div>
                   <div style={{ backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#991b1b', border: '1px solid #fecaca' }}>
-                    {detailMember.remarks || '입력된 주의사항이 없습니다.'}
+                    {detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
                   </div>
                 </div>
               </div>
@@ -639,3 +655,4 @@ export default function MemberInquiry() {
     </div>
   );
 }
+

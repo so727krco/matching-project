@@ -12,4 +12,5 @@ public class ManagerDTO {
     private String empNo;
     private LocalDate birthDate;
     private String introduction;
+    private Boolean isAdmin;
 }

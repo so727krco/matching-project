@@ -1,0 +1,1 @@
+INSERT INTO approval_request (type, requester_id, target_manager_id, target_member_id, status, request_date) VALUES ('INFO_VIEW', 83, 82, 9011, 'PENDING', '2026-08-18'), ('TRANSFER', 84, 82, 9019, 'PENDING', '2026-08-18');
