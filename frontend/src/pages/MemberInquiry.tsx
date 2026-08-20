@@ -1,10 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock, UserCog } from 'lucide-react';
-import { getCouples, setCouples, type Member, type Couple, getApprovalRequests,  } from '../utils/storage';
+import { getCouples, setCouples, type Member, type Couple, getApprovalRequests, getCurrentUser } from '../utils/storage';
 import { usePopup } from '../contexts/PopupContext';
 
-const CURRENT_MANAGER = '매니저A'; // Mock logged-in manager
 
 export default function MemberInquiry() {
   const navigate = useNavigate();
@@ -483,13 +482,13 @@ export default function MemberInquiry() {
                 {/* 민감 정보 (담당 매니저만 열람 가능) */}
                 <div style={{ border: '1px solid var(--color-border)', padding: '1rem', borderRadius: 'var(--radius-md)', backgroundColor: '#f9fafb' }}>
                   <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                    <Lock size={16} className={detailMember.managerName === CURRENT_MANAGER ? 'text-green-600' : 'text-red-500'} />
+                    <Lock size={16} className={detailMember.managerName === getCurrentUser() ? 'text-green-600' : 'text-red-500'} />
                     <h4 className="font-semibold text-sm">연락처 및 사진 (담당 매니저 전용)</h4>
                   </div>
                   
                   {(() => {
-                    const hasAccess = detailMember.managerName === CURRENT_MANAGER;
-                    const req = approvals.find(r => r.type === 'INFO_VIEW' && r.targetMemberId === detailMember.id && r.requesterName === CURRENT_MANAGER);
+                    const hasAccess = detailMember.managerName === getCurrentUser();
+                    const req = approvals.find(r => r.type === 'INFO_VIEW' && r.targetMemberId === detailMember.id && r.requesterName === getCurrentUser());
                     const isApproved = req?.status === 'approved';
                     const isPending = req?.status === 'pending';
 

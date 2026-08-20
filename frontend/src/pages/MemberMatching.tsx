@@ -77,7 +77,7 @@ export default function MemberMatching() {
                     hobby: 'DB 매칭 회원',
                     idealType: '시스템 추천',
                     intro: 'AI 매칭을 통해 추천된 회원입니다.',
-                    managerName: '매니저A'
+                    managerName: getCurrentUser()
                 };
             }
             matchedMembers.push({

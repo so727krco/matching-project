@@ -216,7 +216,7 @@ export default function MatchingManagement() {
                     hobby: 'DB 매칭 회원',
                     idealType: '시스템 추천',
                     intro: 'AI 매칭을 통해 추천된 회원입니다.',
-                    managerName: '매니저A' // Default to current user for demo
+                    managerName: getCurrentUser() // Default to current user for demo
                 };
             }
             matchedMembers.push({

@@ -22,7 +22,8 @@ export default function AdminDashboard() {
     const totalCouples = couples.length;
 
     // 매니저별 통계 계산
-    const managers = ['매니저A', '매니저B']; // 목업 데이터에 존재하는 매니저들
+    // Extract distinct managers from member list
+    const managers = Array.from(new Set(members.map(m => m.managerName).filter(Boolean)));
     const managerStats = managers.map(manager => {
       // 해당 매니저가 담당하는 회원 수
       const managedMembers = members.filter(m => m.managerName === manager).length;
