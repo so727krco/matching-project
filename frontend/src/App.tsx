@@ -13,6 +13,7 @@ import MatchingManagement from './pages/MatchingManagement';
 import MemberInquiry from './pages/MemberInquiry';
 import CoupleInquiry from './pages/CoupleInquiry';
 import AdminDashboard from './pages/AdminDashboard';
+import MatchingHistoryScreen from './pages/MatchingHistoryScreen';
 import ApprovalManagement from './pages/ApprovalManagement';
 
 import { PopupProvider } from './contexts/PopupContext';
@@ -34,6 +35,7 @@ function App() {
             <Route path="/members" element={<MemberInquiry />} />
             <Route path="/couples" element={<CoupleInquiry />} />
             <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/history" element={<MatchingHistoryScreen />} />
             <Route path="/approvals" element={<ApprovalManagement />} />
           </Routes>
         </div>

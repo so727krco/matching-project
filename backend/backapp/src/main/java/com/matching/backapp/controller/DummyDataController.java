@@ -11,6 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.matching.backmgr.repository.MatchingTraitReferenceRepository;
+import com.matching.backmgr.repository.MemberTraitRepository;
+import com.matching.backmgr.entity.MatchingTraitReference;
+import com.matching.backmgr.entity.MemberTrait;
+import java.util.Map;
+import java.util.HashMap;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,6 +27,9 @@ import java.util.Random;
 @RequestMapping("/api/dummy")
 @RequiredArgsConstructor
 public class DummyDataController {
+
+    private final MatchingTraitReferenceRepository traitRefRepository;
+    private final MemberTraitRepository memberTraitRepository;
 
     private final ManagerRepository managerRepository;
     private final com.matching.backmgr.repository.ApprovalRequestRepository approvalRequestRepository;
@@ -101,6 +110,11 @@ public class DummyDataController {
         "가족을 소중하게 생각하고 화목하게 자란 다정한 분을 찾습니다. 사랑받고 자라 사랑을 베풀 줄 아는 따뜻한 마음씨를 가진 분이면 좋겠어요. 훗날 함께 웃음이 끊이지 않는 예쁜 가정을 꾸려나갈 수 있는 좋은 짝을 만나고 싶습니다."
     };
     
+    
+    private static final String[] TRAITS_LOOKS = {"쌍꺼풀", "무쌍", "큰키", "아담한키", "마른체형", "근육질", "통통한체형", "하얀피부", "구릿빛피부", "오뚝한코", "귀여운상", "강아지상", "고양이상", "곰돌이상", "공룡상", "날카로운눈매", "선한눈매", "보조개", "갸름한얼굴", "둥근얼굴", "각진얼굴", "작은얼굴", "넓은어깨", "긴다리", "비율좋은", "단발머리", "긴머리", "반곱슬", "직모", "이마가예쁜", "입술이도톰한", "미소가예쁜", "치열이고른", "목소리가좋은", "손이예쁜", "눈썹이진한", "눈이큰", "눈꼬리가올라간", "눈꼬리가처진", "동안", "성숙한외모", "화려한외모", "수수한외모", "단아한", "섹시한", "청순한", "듬직한", "슬림탄탄", "글래머러스", "잔근육"};
+    private static final String[] TRAITS_PERSONALITY = {"외향적", "내향적", "활발한", "차분한", "유머러스한", "진지한", "다정한", "시크한", "논리적인", "감성적인", "계획적인", "즉흥적인", "솔직한", "배려심많은", "책임감강한", "독립적인", "의존적인", "긍정적인", "비관적인", "현실적인", "이상적인", "사교적인", "낯가림있는", "친절한", "냉철한", "따뜻한", "공감능력좋은", "이성적인", "직설적인", "우회적인", "완벽주의", "여유로운", "승부욕강한", "협동적인", "리더십있는", "팔로워십좋은", "섬세한", "털털한", "예민한", "둔감한", "도전적인", "안정추구형", "자기주장강한", "경청하는", "호기심많은", "보수적인", "개방적인", "눈치빠른", "느긋한", "조급한"};
+    private static final String[] TRAITS_IDEAL = {"연상", "연하", "동갑", "전문직", "안정적인직장", "고연봉", "가정적인", "자기관리철저한", "연락잘되는", "취미가같은", "술안마시는", "비흡연자", "종교가같은", "존경할수있는", "대화가잘통하는", "가치관이맞는", "경제관념뚜렷한", "애교많은", "어른스러운", "나만바라보는", "패션센스있는", "예의바른", "동물을사랑하는", "요리잘하는", "운전잘하는", "여행좋아하는", "운동좋아하는", "집순이집돌이", "야외활동즐기는", "미래지향적인", "다정다감한", "표현잘하는", "밀당안하는", "사생활존중하는", "친구같은", "리드해주는", "따라와주는", "배울점이많은", "멘탈이강한", "갈등해결잘하는", "화내지않는", "잔소리안하는", "경제력있는", "부모님께잘하는", "아이좋아하는", "자기계발하는", "지적인", "소박한", "사치안하는", "건강한"};
+
     private static final String[] MEMBER_IDEAL_TYPES = {
         "대화가 잘 통하고 다정한 사람",
         "자기 관리를 잘하고 배울 점이 많은 사람",
@@ -121,7 +135,9 @@ public class DummyDataController {
     public ResponseEntity<String> generateDummyData() {
         // Clear existing data to prevent duplication and accumulation
         approvalRequestRepository.deleteAllInBatch();
+        memberTraitRepository.deleteAllInBatch();
         memberRepository.deleteAllInBatch();
+        traitRefRepository.deleteAllInBatch();
         managerRepository.deleteAllInBatch();
 
         Random random = new Random();
@@ -200,5 +216,97 @@ public class DummyDataController {
         }
 
         return ResponseEntity.ok("Dummy data generated successfully: 20 managers (2 admins) and 3000 members with rich random combinations.");
+    }
+
+    @PostMapping("/generate-members")
+    @Transactional
+    public ResponseEntity<String> generateMembersOnly() {
+        approvalRequestRepository.deleteAllInBatch();
+        memberTraitRepository.deleteAllInBatch();
+        memberRepository.deleteAllInBatch();
+        traitRefRepository.deleteAllInBatch();
+        
+        // Insert 150 Reference Traits
+        List<MatchingTraitReference> refs = new ArrayList<>();
+        for (String k : TRAITS_LOOKS) refs.add(MatchingTraitReference.builder().category("LOOKS").keyword(k).build());
+        for (String k : TRAITS_PERSONALITY) refs.add(MatchingTraitReference.builder().category("PERSONALITY").keyword(k).build());
+        for (String k : TRAITS_IDEAL) refs.add(MatchingTraitReference.builder().category("IDEAL_TYPE").keyword(k).build());
+        traitRefRepository.saveAll(refs);
+
+        List<Manager> managers = managerRepository.findAll();
+        if (managers.isEmpty()) {
+            return ResponseEntity.badRequest().body("No managers found. Please generate managers first.");
+        }
+
+        Random random = new Random();
+        List<Member> members = new ArrayList<>();
+        List<MemberTrait> memberTraitsToSave = new ArrayList<>();
+        
+        for (int i = 1; i <= 3000; i++) {
+            Manager assignedManager = managers.get(random.nextInt(managers.size()));
+            boolean isMale = random.nextBoolean();
+            String gender = isMale ? "M" : "F";
+            int age = 20 + random.nextInt(25);
+            int height = isMale ? 165 + random.nextInt(25) : 155 + random.nextInt(20);
+            
+            String lastName = LAST_NAMES[random.nextInt(LAST_NAMES.length)];
+            String firstName = isMale ? FIRST_NAMES_M[random.nextInt(FIRST_NAMES_M.length)] : FIRST_NAMES_F[random.nextInt(FIRST_NAMES_F.length)];
+            String name = lastName + firstName;
+            
+            String greeting = INTRO_GREETINGS[random.nextInt(INTRO_GREETINGS.length)];
+            String hobbyIntro = INTRO_HOBBIES[random.nextInt(INTRO_HOBBIES.length)];
+            String idealIntro = INTRO_IDEAL_TYPES[random.nextInt(INTRO_IDEAL_TYPES.length)];
+            String introduction = greeting + hobbyIntro + idealIntro;
+            
+            String shortIdealType = MEMBER_IDEAL_TYPES[random.nextInt(MEMBER_IDEAL_TYPES.length)];
+
+            Member member = Member.builder()
+                    .name(name)
+                    .gender(gender)
+                    .age(age)
+                    .height(height)
+                    .job(JOBS[random.nextInt(JOBS.length)])
+                    .salary(3000 + random.nextInt(7000))
+                    .phoneNumber("01011111111")
+                    .hobbies(HOBBIES[random.nextInt(HOBBIES.length)] + ", " + HOBBIES[random.nextInt(HOBBIES.length)])
+                    .idealType(shortIdealType)
+                    .introduction(introduction)
+                    .remarks("특이사항 없음")
+                    .status(Member.MemberStatus.ACTIVE)
+                    .manager(assignedManager)
+                    .build();
+            
+            members.add(member);
+            
+            MemberTrait memberTrait = new MemberTrait();
+            memberTrait.setMember(member);
+            Map<String, Integer> traitsMap = new HashMap<>();
+            
+            // Randomly pick 15 traits from all categories and assign scores 0-100
+            for(int j=0; j<5; j++) {
+                traitsMap.put(TRAITS_LOOKS[random.nextInt(TRAITS_LOOKS.length)], random.nextInt(101));
+                traitsMap.put(TRAITS_PERSONALITY[random.nextInt(TRAITS_PERSONALITY.length)], random.nextInt(101));
+                traitsMap.put(TRAITS_IDEAL[random.nextInt(TRAITS_IDEAL.length)], random.nextInt(101));
+            }
+            memberTrait.setTraits(traitsMap);
+            memberTraitsToSave.add(memberTrait);
+
+            
+            if (i % 500 == 0) {
+                memberRepository.saveAll(members);
+                memberTraitRepository.saveAll(memberTraitsToSave);
+                memberRepository.flush();
+                memberTraitRepository.flush();
+                members.clear();
+                memberTraitsToSave.clear();
+            }
+        }
+        
+        if (!members.isEmpty()) {
+            memberRepository.saveAll(members);
+            memberTraitRepository.saveAll(memberTraitsToSave);
+        }
+
+        return ResponseEntity.ok("Dummy data generated successfully: 3000 members and traits regenerated.");
     }
 }

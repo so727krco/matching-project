@@ -57,6 +57,9 @@ export default function MatchingManagement() {
   const { showAlert, showConfirm } = usePopup();
   const [newMatchTitle, setNewMatchTitle] = useState('');
   const [newMatchThemes, setNewMatchThemes] = useState<string[]>(['', '', '']);
+  const [maleCount, setMaleCount] = useState<number>(2);
+  const [femaleCount, setFemaleCount] = useState<number>(2);
+  const [isMatching, setIsMatching] = useState(false);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
   const [includeOtherManagers, setIncludeOtherManagers] = useState(false);
 
@@ -175,26 +178,83 @@ export default function MatchingManagement() {
     setIsAddModalOpen(false);
   };
 
-  const handleCreateMatch = (e: React.FormEvent) => {
+  const handleCreateMatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMatchTitle.trim()) return;
     
-    const newMatch: Match = {
-      id: Date.now(),
-      title: newMatchTitle,
-      date: new Date().toISOString().split('T')[0],
-      themes: newMatchThemes.filter(t => t.trim() !== ''),
-      managerName: getCurrentUser(),
-      members: []
-    };
-    
-    const updatedMatches = [newMatch, ...matches];
-    setMatches(updatedMatches);
-    saveMatches(updatedMatches);
-    
-    setNewMatchTitle('');
-    setNewMatchThemes(['', '', '']);
-    setIsCreateMatchModalOpen(false);
+    setIsMatching(true);
+    try {
+        const response = await fetch('http://localhost:8080/api/matching/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                topics: newMatchThemes.filter(t => t.trim() !== ''),
+                maleCount: maleCount,
+                femaleCount: femaleCount,
+                managerName: getCurrentUser()
+            })
+        });
+        
+        if (!response.ok) throw new Error('API request failed');
+        
+        const data = await response.json();
+        
+        // Find full member details from local storage members based on matched IDs
+        const matchedMembers: any[] = [];
+        
+        
+        const processCandidate = (candidate: any) => {
+            let fullMember = allMembers.find((m: any) => m.id === candidate.memberId);
+            if (!fullMember) {
+                fullMember = {
+                    id: candidate.memberId,
+                    name: candidate.name,
+                    gender: candidate.gender === 'M' ? '남성' : '여성',
+                    age: candidate.age,
+                    job: '미상 (DB회원)',
+                    income: 0,
+                    hobby: 'DB 매칭 회원',
+                    idealType: '시스템 추천',
+                    intro: 'AI 매칭을 통해 추천된 회원입니다.',
+                    managerName: '매니저A' // Default to current user for demo
+                };
+            }
+            matchedMembers.push({
+                ...fullMember,
+                approvalStatus: fullMember.managerName === getCurrentUser() ? 'approved' : 'pending',
+                paymentStatus: 'UNPAID',
+                diffScore: candidate.diffScore
+            });
+        };
+        
+        data.males.forEach(processCandidate);
+        data.females.forEach(processCandidate);
+        
+        const newMatch: Match = {
+          id: Date.now(),
+          title: newMatchTitle,
+          date: new Date().toISOString().split('T')[0],
+          themes: newMatchThemes.filter(t => t.trim() !== ''),
+          managerName: getCurrentUser(),
+          members: matchedMembers
+        };
+        
+        const updatedMatches = [newMatch, ...matches];
+        setMatches(updatedMatches);
+        saveMatches(updatedMatches);
+        
+        setNewMatchTitle('');
+        setNewMatchThemes(['', '', '']);
+        setMaleCount(2);
+        setFemaleCount(2);
+        setIsCreateMatchModalOpen(false);
+        showAlert(`매칭이 완료되었습니다! (총 ${matchedMembers.length}명 추출)`);
+    } catch (err) {
+        console.error(err);
+        showAlert('매칭에 실패했습니다. 백엔드 서버를 확인해주세요.');
+    } finally {
+        setIsMatching(false);
+    }
   };
 
   return (
@@ -313,7 +373,7 @@ export default function MatchingManagement() {
                     onClick={() => setDetailMember(member)}
                   >
                     <div className="flex gap-4 items-center">
-                      {renderScoreBadge(getMockScore(selectedMatch.id, member.id))}
+                      {renderScoreBadge(parseInt(((member as any).diffScore ? (100 - ((member as any).diffScore / 10)) : getMockScore(selectedMatch.id, member.id)).toFixed(0), 10))}
                       <div>
                         <div className="font-semibold flex items-center gap-2">
                           {member.name} 
@@ -413,7 +473,7 @@ export default function MatchingManagement() {
                       onClick={() => !isAlreadyAdded && handleConfirmAddMember(member)}
                     >
                       <div className="flex gap-4 items-center">
-                        {selectedMatch && renderScoreBadge(getMockScore(selectedMatch.id, member.id), isAlreadyAdded ? 0.5 : 1)}
+                        {selectedMatch && renderScoreBadge(parseInt(((member as any).diffScore ? (100 - ((member as any).diffScore / 10)) : getMockScore(selectedMatch.id, member.id)).toFixed(0), 10), isAlreadyAdded ? 0.5 : 1)}
                         <div>
                           <div className="font-semibold flex items-center gap-2">
                             {member.name} <span className="text-sm font-normal text-secondary">({member.gender}, {member.age}세)</span>
@@ -485,13 +545,37 @@ export default function MatchingManagement() {
                   </div>
                   <p className="text-secondary text-xs">입력된 주제를 기반으로 AI가 매칭 점수를 분석합니다.</p>
                 </div>
+
+                <div className="flex gap-4 mb-6">
+                  <div className="form-group flex-1">
+                    <label className="form-label">추출할 남성 인원</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min="0" max="100"
+                      value={maleCount}
+                      onChange={(e) => setMaleCount(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="form-group flex-1">
+                    <label className="form-label">추출할 여성 인원</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min="0" max="100"
+                      value={femaleCount}
+                      onChange={(e) => setFemaleCount(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+
                 
                 <div className="flex justify-end gap-3">
                   <button type="button" className="btn btn-outline" onClick={() => setIsCreateMatchModalOpen(false)}>
                     취소
                   </button>
-                  <button type="submit" className="btn btn-primary">
-                    생성하기
+                  <button type="submit" className="btn btn-primary" disabled={isMatching}>
+                    {isMatching ? 'AI 매칭 중...' : '생성 및 자동매칭'}
                   </button>
                 </div>
               </form>

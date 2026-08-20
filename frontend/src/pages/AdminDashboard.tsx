@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, BarChart3, Users, HeartHandshake, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, BarChart3, Users, HeartHandshake, CheckCircle2, Calendar, ChevronRight } from 'lucide-react';
 import { getMembers, getMatches, getCouples } from '../utils/storage';
 
 export default function AdminDashboard() {
@@ -75,6 +75,24 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold mb-2">비즈니스 통계</h2>
           <p className="text-secondary text-sm">전체 서비스 운영 현황을 한눈에 파악하세요.</p>
         </div>
+
+        {/* Actions */}
+        <button 
+          className="card flex items-center justify-between hover-card" 
+          style={{ padding: '1.25rem', cursor: 'pointer', textAlign: 'left', border: 'none', background: 'white', width: '100%', marginBottom: '2rem' }}
+          onClick={() => navigate('/admin/history')}
+        >
+          <div className="flex items-center gap-4">
+            <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '50%', color: '#d97706' }}>
+              <Calendar size={24} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">매칭 이력(로그) 조회</h3>
+              <p className="text-sm text-secondary">AI 매칭 시도 내역과 키워드 변환 로그를 열람합니다.</p>
+            </div>
+          </div>
+          <ChevronRight className="text-secondary" />
+        </button>
 
         {/* Top KPIs */}
         <div className="grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
