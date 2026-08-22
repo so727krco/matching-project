@@ -1,4 +1,4 @@
-package com.matching.backmgr.service;
+﻿package com.matching.backmgr.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,8 +53,30 @@ public class MatchingService {
             log.info("Using MOCK AI provider");
         }
 
-        Map<String, Integer> targetWeights = aiServiceToUse.extractTraitWeights(request.getTopics());
-        log.info("AI Extracted Targets: {}", targetWeights);
+        Map<String, Integer> targetWeights = new HashMap<>();
+        try {
+            targetWeights = aiServiceToUse.extractTraitWeights(request.getTopics());
+            log.info("AI Extracted Targets: {}", targetWeights);
+        } catch (Exception aiException) {
+            log.error("AI Filtering or Parsing Error", aiException);
+            // Save blocked history
+            try {
+                String topicsJson = objectMapper.writeValueAsString(request.getTopics());
+                Map<String, Integer> errorTargets = new HashMap<>();
+                errorTargets.put("BLOCKED_BY_SAFETY_FILTER", -1);
+                
+                MatchingHistory history = MatchingHistory.builder()
+                        .managerName(request.getManagerName() != null ? request.getManagerName() : "System")
+                        .searchTopics(topicsJson)
+                        .extractedTargets(errorTargets)
+                        .status("ERROR_BLOCKED")
+                        .build();
+                matchingHistoryRepository.save(history);
+            } catch (Exception e) {
+                log.error("Failed to save blocked history", e);
+            }
+            throw new RuntimeException("AI 매칭 필터링 오류: 부적절한 단어가 포함되었거나 AI가 응답을 거부했습니다. 관리자에게 문의하세요.");
+        }
 
         try {
             String topicsJson = objectMapper.writeValueAsString(request.getTopics());
@@ -62,6 +84,7 @@ public class MatchingService {
                     .managerName(request.getManagerName() != null ? request.getManagerName() : "System")
                     .searchTopics(topicsJson)
                     .extractedTargets(targetWeights)
+                    .status("SUCCESS")
                     .build();
             matchingHistoryRepository.save(history);
         } catch (JsonProcessingException e) {
@@ -121,6 +144,7 @@ public class MatchingService {
                         .managerName(history.getManagerName())
                         .searchTopics(history.getSearchTopics())
                         .extractedTargets(history.getExtractedTargets())
+                        .status(history.getStatus()) // Added status to DTO
                         .createdAt(history.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());

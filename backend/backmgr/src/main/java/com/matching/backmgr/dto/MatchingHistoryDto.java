@@ -1,4 +1,4 @@
-package com.matching.backmgr.dto;
+﻿package com.matching.backmgr.dto;
 
 import lombok.Builder;
 import lombok.Data;
@@ -13,5 +13,6 @@ public class MatchingHistoryDto {
     private String managerName;
     private String searchTopics;
     private Map<String, Integer> extractedTargets;
+    private String status;
     private LocalDateTime createdAt;
 }

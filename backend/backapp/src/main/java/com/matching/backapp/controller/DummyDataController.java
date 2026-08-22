@@ -39,7 +39,7 @@ public class DummyDataController {
     private static final String[] FIRST_NAMES_M = {"민준", "서준", "도윤", "예준", "시우", "하준", "지호", "주원", "건우", "선우", "유준", "연우", "은우", "현우", "수현", "준우", "승우", "정우", "우진", "시윤", "이준", "지훈", "동현", "성민", "민성", "재윤", "재현", "승현", "진우", "민수", "태윤", "태민", "민석", "윤호", "승민", "재민", "시현", "준서", "태현", "지환", "민재", "지성", "은호", "시훈", "준형", "우석", "동주", "민기", "승기", "태경"};
     private static final String[] FIRST_NAMES_F = {"서윤", "서연", "지우", "서현", "하은", "지유", "민서", "하윤", "지민", "은서", "채원", "수아", "유진", "다은", "예은", "윤서", "수민", "지안", "소율", "예진", "채윤", "다인", "연주", "소은", "연서", "윤아", "지현", "수진", "민지", "예린", "지윤", "아인", "하율", "서진", "유빈", "민아", "시은", "가은", "유나", "지수", "채은", "현서", "예지", "은채", "은지", "수연", "시아", "아윤", "보름", "아영"};
     private static final String[] JOBS = {"의사", "변호사", "개발자", "디자이너", "교사", "공무원", "사업가", "회사원", "프리랜서", "건축가", "약사", "회계사", "마케터", "기획자", "강사", "은행원", "경찰", "소방관", "간호사", "승무원"};
-    private static final String[] HOBBIES = {"독서", "영화감상", "요리", "운동", "여행", "게임", "음악감상", "사진", "등산", "캠핑", "자전거", "수영", "테니스", "골프", "피아노", "미술", "맛집탐방", "전시회관람", "콘서트", "넷플릭스"};
+    private static final String[] HOBBIES = {"독서", "영화감상", "요리", "운동", "여행", "게임", "음악감상", "사진", "등산", "캠핑", "자전거", "수영", "테니스", "골프", "피아노", "미술", "맛집탐방", "트렌드/핫플민감한", "전시회관람", "콘서트", "넷플릭스"};
 
     private static final String[] INTRO_GREETINGS = {
         "안녕하세요! 반가워요. 저는 평소에 긍정적이고 밝은 성격을 가지고 있어서 주변 사람들과 잘 어울리는 편입니다. ",
@@ -111,9 +111,12 @@ public class DummyDataController {
     };
     
     
-    private static final String[] TRAITS_LOOKS = {"쌍꺼풀", "무쌍", "큰키", "아담한키", "마른체형", "근육질", "통통한체형", "하얀피부", "구릿빛피부", "오뚝한코", "귀여운상", "강아지상", "고양이상", "곰돌이상", "공룡상", "날카로운눈매", "선한눈매", "보조개", "갸름한얼굴", "둥근얼굴", "각진얼굴", "작은얼굴", "넓은어깨", "긴다리", "비율좋은", "단발머리", "긴머리", "반곱슬", "직모", "이마가예쁜", "입술이도톰한", "미소가예쁜", "치열이고른", "목소리가좋은", "손이예쁜", "눈썹이진한", "눈이큰", "눈꼬리가올라간", "눈꼬리가처진", "동안", "성숙한외모", "화려한외모", "수수한외모", "단아한", "섹시한", "청순한", "듬직한", "슬림탄탄", "글래머러스", "잔근육"};
-    private static final String[] TRAITS_PERSONALITY = {"외향적", "내향적", "활발한", "차분한", "유머러스한", "진지한", "다정한", "시크한", "논리적인", "감성적인", "계획적인", "즉흥적인", "솔직한", "배려심많은", "책임감강한", "독립적인", "의존적인", "긍정적인", "비관적인", "현실적인", "이상적인", "사교적인", "낯가림있는", "친절한", "냉철한", "따뜻한", "공감능력좋은", "이성적인", "직설적인", "우회적인", "완벽주의", "여유로운", "승부욕강한", "협동적인", "리더십있는", "팔로워십좋은", "섬세한", "털털한", "예민한", "둔감한", "도전적인", "안정추구형", "자기주장강한", "경청하는", "호기심많은", "보수적인", "개방적인", "눈치빠른", "느긋한", "조급한"};
-    private static final String[] TRAITS_IDEAL = {"연상", "연하", "동갑", "전문직", "안정적인직장", "고연봉", "가정적인", "자기관리철저한", "연락잘되는", "취미가같은", "술안마시는", "비흡연자", "종교가같은", "존경할수있는", "대화가잘통하는", "가치관이맞는", "경제관념뚜렷한", "애교많은", "어른스러운", "나만바라보는", "패션센스있는", "예의바른", "동물을사랑하는", "요리잘하는", "운전잘하는", "여행좋아하는", "운동좋아하는", "집순이집돌이", "야외활동즐기는", "미래지향적인", "다정다감한", "표현잘하는", "밀당안하는", "사생활존중하는", "친구같은", "리드해주는", "따라와주는", "배울점이많은", "멘탈이강한", "갈등해결잘하는", "화내지않는", "잔소리안하는", "경제력있는", "부모님께잘하는", "아이좋아하는", "자기계발하는", "지적인", "소박한", "사치안하는", "건강한"};
+    private static final String[] TRAITS_LOOKS = {"아나운서상", "단아한", "세련된", "도시적인", "귀여운", "강아지상", "고양이상", "청순한", "섹시한", "호감형인상", "동안외모", "이목구비뚜렷한", "쌍꺼풀있는", "무쌍매력", "피부가하얀", "피부가좋은", "큰키", "아담한키", "비율이좋은", "슬림한체형", "마른체형", "통통한체형", "근육질/탄탄한", "어깨가넓은", "글래머러스한", "패션감각좋은", "수수한스타일", "화려한스타일", "안경잘어울리는", "미소가예쁜"};
+    private static final String[] TRAITS_JOB_ECONOMY = {"전문직(의료)", "전문직(법조)", "대기업", "공기업/공무원", "금융권", "IT/개발자", "교사/교육직", "사업가", "프리랜서", "예술/체육계", "고연봉", "안정적인수입", "자가소유", "부모님노후대비", "금수저(부유한본가)", "경제관념철저한", "재테크관심많은", "소비가큰", "검소한", "근로소득외수익", "차량소유(고급차)", "학벌이좋은", "유학파", "해외근무가능", "워라밸좋은직장", "바쁘지만성공한", "정년보장", "투잡/N잡러", "스타트업대표", "가업승계"};
+    private static final String[] TRAITS_LIFESTYLE = {"반려동물키우는", "아웃도어/캠핑즐기는", "비건/채식주의", "외국어/어학능통", "미식가/파인다이닝", "골프즐기는", "테니스/스쿼시", "헬스/바디프로필", "러닝/마라톤", "필라테스/요가", "자전거/라이딩", "서핑/수상스포츠", "등산/트레킹", "호캉스즐기는", "해외여행자주가는", "맛집탐방", "카페투어/디저트", "미술관/전시관람", "뮤지컬/공연관람", "독서/자기계발", "영화/드라마감상", "집순이/집돌이", "방탈출/보드게임", "PC/콘솔게임즐기는", "애니메이션/서브컬처", "요리하기좋아하는", "베이킹/디저트만들기", "사진찍기좋아하는", "와인/위스키즐기는", "가벼운맥주선호", "비음주자(술안마시는)", "익스트림스포츠", "SNS활발한(인스타)", "SNS안하는(프라이빗)", "쇼핑/패션관심많은", "자연친화적인", "악기연주/음악활동", "음악감상(클래식/재즈)", "봉사활동하는", "댄스/안무즐기는", "재테크/투자(주식/코인)", "명상/마음챙김", "공방/원데이클래스", "스포츠경기직관", "클럽/페스티벌즐기는", "인테리어/집꾸미기", "수영/프리다이빙", "자격증공부하는", "낚시즐기는", "드로잉/그림그리기"};
+    private static final String[] TRAITS_VALUES = {"딩크족(자녀X)", "자녀계획있는", "맞벌이선호", "외벌이선호", "가정적인(육아동참)", "개인시간존중", "연락자주하는", "연락에자유로운", "기독교", "천주교", "불교", "무교", "종교상관없는", "비흡연자", "흡연자", "주말마다데이트", "한달에1~2번데이트", "결혼준비완료된", "장거리연애가능", "동거후결혼선호", "전통적인결혼관", "개방적인가치관", "동물보호/환경관심", "정치성향비슷한", "싸워도대화로푸는", "혼자만의시간필요한", "양가부모님께잘하는", "독립적인성향", "워커홀릭", "일보다가족우선"};
+    private static final String[] TRAITS_PERSONALITY = {"현실적인(S형)", "창의적인(N형)", "외향적인(E형)", "내향적인(I형)", "논리적인(T형)", "공감잘하는(F형)", "계획적인(J형)", "즉흥적인(P형)", "유머러스한", "차분한", "긍정적인", "리더십있는", "다정한", "애교많은", "시크한", "털털한", "섬세한", "진중한", "호기심많은", "감수성풍부한", "도전적인", "자극/도파민추구형", "안정추구형", "눈치빠른", "직설적인", "말을예쁘게하는", "경청잘하는", "자기주장확실한", "타협잘하는", "정이많은", "사교적인", "완벽주의자", "솔직한"}; 
+    private static final String[] TRAITS_ROMANCE = {"스킨십을중요시하는", "애정표현적극적인", "낮져밤이스타일", "낮이밤져스타일", "리드하는연애선호", "리드당하는연애선호", "밀당없는직진형", "로맨틱한이벤트선호", "플러팅잘하는", "소소한일상공유", "프라이버시존중", "연락은무조건자주", "질투심이조금있는", "자유방임형연애", "헌신적인해바라기", "친구같은편안함", "뜨겁고열정적인", "잔잔하고스며드는", "말보다행동으로보여주는", "다정하고세심한"};
 
     private static final String[] MEMBER_IDEAL_TYPES = {
         "대화가 잘 통하고 다정한 사람",
@@ -229,8 +232,11 @@ public class DummyDataController {
         // Insert 150 Reference Traits
         List<MatchingTraitReference> refs = new ArrayList<>();
         for (String k : TRAITS_LOOKS) refs.add(MatchingTraitReference.builder().category("LOOKS").keyword(k).build());
-        for (String k : TRAITS_PERSONALITY) refs.add(MatchingTraitReference.builder().category("PERSONALITY").keyword(k).build());
-        for (String k : TRAITS_IDEAL) refs.add(MatchingTraitReference.builder().category("IDEAL_TYPE").keyword(k).build());
+        for (String k : TRAITS_JOB_ECONOMY) refs.add(MatchingTraitReference.builder().category("JOB_ECONOMY").keyword(k).build());
+        for (String k : TRAITS_LIFESTYLE) refs.add(MatchingTraitReference.builder().category("LIFESTYLE").keyword(k).build());
+        for (String k : TRAITS_VALUES) refs.add(MatchingTraitReference.builder().category("VALUES").keyword(k).build());
+        for (String k : TRAITS_PERSONALITY) refs.add(MatchingTraitReference.builder().category("PERSONALITY").keyword(k).build()); 
+        for (String k : TRAITS_ROMANCE) refs.add(MatchingTraitReference.builder().category("ROMANCE_STYLE").keyword(k).build());
         traitRefRepository.saveAll(refs);
 
         List<Manager> managers = managerRepository.findAll();
@@ -285,6 +291,11 @@ public class DummyDataController {
             // Randomly pick 15 traits from all categories and assign scores 0-100
             for(int j=0; j<5; j++) {
                 traitsMap.put(TRAITS_LOOKS[random.nextInt(TRAITS_LOOKS.length)], random.nextInt(101));
+                traitsMap.put(TRAITS_JOB_ECONOMY[random.nextInt(TRAITS_JOB_ECONOMY.length)], random.nextInt(101));
+                traitsMap.put(TRAITS_LIFESTYLE[random.nextInt(TRAITS_LIFESTYLE.length)], random.nextInt(101));
+                traitsMap.put(TRAITS_VALUES[random.nextInt(TRAITS_VALUES.length)], random.nextInt(101));
+                traitsMap.put(TRAITS_PERSONALITY[random.nextInt(TRAITS_PERSONALITY.length)], random.nextInt(101)); 
+                traitsMap.put(TRAITS_ROMANCE[random.nextInt(TRAITS_ROMANCE.length)], random.nextInt(101));
                 traitsMap.put(TRAITS_PERSONALITY[random.nextInt(TRAITS_PERSONALITY.length)], random.nextInt(101));
                 traitsMap.put(TRAITS_IDEAL[random.nextInt(TRAITS_IDEAL.length)], random.nextInt(101));
             }

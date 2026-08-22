@@ -1,4 +1,4 @@
-package com.matching.backmgr.service.impl;
+﻿package com.matching.backmgr.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,7 +35,7 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
                 .map(MatchingTraitReference::getKeyword)
                 .collect(Collectors.toList());
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey;
 
         String prompt = systemPrompt + "\n\n"
                 + "[사용자 입력 키워드]: " + String.join(", ", topics) + "\n\n"

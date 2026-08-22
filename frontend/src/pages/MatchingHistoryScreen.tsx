@@ -8,6 +8,7 @@ interface MatchingHistory {
   managerName: string;
   searchTopics: string;
   extractedTargets: Record<string, number>;
+  status?: string;
   createdAt: string;
 }
 

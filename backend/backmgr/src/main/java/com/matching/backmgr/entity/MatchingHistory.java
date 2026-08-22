@@ -1,4 +1,4 @@
-package com.matching.backmgr.entity;
+﻿package com.matching.backmgr.entity;
 
 import com.matching.backmgr.converter.MapToJsonConverter;
 import jakarta.persistence.*;
@@ -29,6 +29,10 @@ public class MatchingHistory {
     @Column(name = "extracted_targets", nullable = false, columnDefinition = "json")
     @Convert(converter = MapToJsonConverter.class)
     private Map<String, Integer> extractedTargets;
+
+    @Column(name = "status", nullable = false)
+    @Builder.Default
+    private String status = "SUCCESS";
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
