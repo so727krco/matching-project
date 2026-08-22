@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock, UserCog } from 'lucide-react';
 import { getCouples, setCouples, type Member, type Couple, getApprovalRequests, getCurrentUser } from '../utils/storage';
@@ -288,14 +288,21 @@ export default function MemberInquiry() {
         </div>
 
         {/* Search Toggle Button */}
-        <div className="mb-4">
+        <div className="mb-4 flex gap-2">
           <button 
-            className="btn btn-outline"
-            style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem', backgroundColor: isSearchOpen ? 'var(--color-surface-hover)' : 'white' }}
+            className="btn btn-outline flex-1"
+            style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', backgroundColor: isSearchOpen ? 'var(--color-surface-hover)' : 'white' }}
             onClick={() => setIsSearchOpen(!isSearchOpen)}
           >
             <Search size={16} />
             상세검색 {isSearchOpen ? '닫기' : '열기'}
+          </button>
+          <button 
+            className="btn btn-primary"
+            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0 1.5rem', whiteSpace: 'nowrap' }}
+            onClick={handleSearch}
+          >
+            재조회
           </button>
         </div>
 
@@ -497,9 +504,9 @@ export default function MemberInquiry() {
                         <>
                           <div className="grid mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
                             {Object.entries(memberTraits).map(([key, value]) => (
-                              <div key={key} className="flex justify-between items-center text-sm" style={{ backgroundColor: 'white', padding: '0.4rem', borderRadius: '4px', border: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
-                                <span className="text-gray-700">{key}</span>
-                                <span className="font-bold text-indigo-600">{value}</span>
+                              <div key={key} className="flex justify-between items-center text-sm" style={{ backgroundColor: Number(value) > 90 ? '#fee2e2' : Number(value) === 90 ? '#fef9c3' : 'white', padding: '0.4rem', borderRadius: '4px', border: Number(value) > 90 ? '1px solid #fecaca' : Number(value) === 90 ? '1px solid #fef08a' : '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                                <span className={Number(value) > 90 ? "text-red-800 font-medium" : Number(value) === 90 ? "text-yellow-800 font-medium" : "text-gray-700"}>{key}</span>
+                                <span className={`font-bold ${Number(value) > 90 ? "text-red-600" : Number(value) === 90 ? "text-yellow-700" : "text-indigo-600"}`}>{value}</span>
                               </div>
                             ))}
                           </div>
