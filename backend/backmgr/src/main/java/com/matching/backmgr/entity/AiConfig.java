@@ -31,4 +31,7 @@ public class AiConfig {
     
     @Column(name = "usage_type")
     private String usageType; // e.g., "MATCHING_SEARCH", "MEMBER_PROFILING"
+
+    @Column(name = "api_url", length = 500)
+    private String apiUrl;
 }

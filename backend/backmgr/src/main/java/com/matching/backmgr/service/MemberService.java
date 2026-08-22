@@ -100,6 +100,7 @@ public class MemberService {
         
         if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
             aiServiceToUse = new GeminiMatchingAiServiceImpl(
+                activeConfig.getApiUrl(),
                 activeConfig.getApiKey(), 
                 activeConfig.getSystemPrompt(), 
                 traitRefRepository, 

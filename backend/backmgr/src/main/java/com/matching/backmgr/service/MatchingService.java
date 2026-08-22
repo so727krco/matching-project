@@ -44,6 +44,7 @@ public class MatchingService {
         if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
             log.info("Using GEMINI AI provider");
             aiServiceToUse = new GeminiMatchingAiServiceImpl(
+                activeConfig.getApiUrl(),
                 activeConfig.getApiKey(), 
                 activeConfig.getSystemPrompt(), 
                 traitRefRepository, 

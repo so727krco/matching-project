@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GeminiMatchingAiServiceImpl implements MatchingAiService {
 
+    private final String apiUrl;
     private final String apiKey;
     private final String systemPrompt;
     private final MatchingTraitReferenceRepository traitRefRepository;
@@ -33,7 +34,7 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
     public Map<String, Integer> extractTraitWeights(List<String> topics) {
         // We reuse the generic json map logic for simple tasks, but here we can just map it directly.
         // It's not the new format.
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey;
+        String url = apiUrl + "?key=" + apiKey;
         String fullPrompt = systemPrompt + "\n\n[Topics]: " + topics.toString();
         // Since the generic method now parses the new object, we need a separate logic for extractTraitWeights if needed.
         // But for this demo, extractTraitWeights isn't the one being changed.
@@ -69,7 +70,7 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
                 .map(MatchingTraitReference::getKeyword)
                 .collect(Collectors.toList());
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey;
+        String url = apiUrl + "?key=" + apiKey;
 
         String fullPrompt = systemPrompt + "\n\n"
                 + "[분석할 내용]: " + memberProfileText + "\n\n"
@@ -87,10 +88,11 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         AiProfileResult result = new AiProfileResult();
+        JsonNode rootNode = null;
         try {
             log.info("Requesting Gemini API (member profiling)...");
             String response = restTemplate.postForObject(url, entity, String.class);
-            JsonNode rootNode = objectMapper.readTree(response);
+            rootNode = objectMapper.readTree(response);
             
             String textResponse = rootNode.path("candidates").get(0)
                     .path("content").path("parts").get(0).path("text").asText();
@@ -121,8 +123,11 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
                 result.setAnalysisRemarks("특이사항 없음.");
             }
 
+        } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+            log.error("Gemini API Rate Limit Exceeded (429)");
+            throw new RuntimeException("GEMINI_RATE_LIMIT_EXCEEDED");
         } catch (Exception e) {
-            log.error("Failed to parse Gemini response: ", e);
+            log.error("Failed to parse Gemini response. textResponse: " + (rootNode != null ? rootNode.toString() : "null"), e);
             throw new RuntimeException("AI 분석 중 오류가 발생했습니다. (Safety 필터 차단 또는 응답 오류)");
         }
 

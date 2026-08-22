@@ -70,6 +70,9 @@ public class MemberController {
             Member savedMember = memberService.registerMember(member, request.getManagerId());
             return ResponseEntity.ok(savedMember);
         } catch (Exception e) {
+            if ("GEMINI_RATE_LIMIT_EXCEEDED".equals(e.getMessage()) || (e.getMessage() != null && e.getMessage().contains("GEMINI_RATE_LIMIT_EXCEEDED"))) {
+                return ResponseEntity.status(429).body("Gemini API Rate Limit Exceeded");
+            }
             return ResponseEntity.badRequest().body("회원 등록 실패: " + e.getMessage());
         }
     }
