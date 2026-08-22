@@ -113,8 +113,8 @@ async function runBatch() {
         else if (contactType < 0.66) kakao = generateRandomKakao();
         else { phone = generateRandomPhone(); kakao = generateRandomKakao(); }
 
-        const salarySteps = Math.floor(Math.random() * 25);
-        const salary = 3000 + (salarySteps * 500);
+        const salaryList = [3000, 3100, 3200, 3300, 3500, 3600, 3700, 3800, 4000, 4100, 4200, 4300, 4400, 4500, 4700, 4800, 4900, 4950, 5000, 5500, 6000, 7000, 8000, 10000, 12000];
+        const salary = salaryList[Math.floor(Math.random() * salaryList.length)];
 
         const memberData = {
             name: name, gender: gender, age: Math.floor(25 + Math.random() * 15), height: Math.floor(150 + Math.random() * 40),
