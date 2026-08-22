@@ -1,4 +1,4 @@
-﻿package com.matching.backmgr.entity;
+package com.matching.backmgr.entity;
 
 import com.matching.backmgr.converter.MapToJsonConverter;
 import jakarta.persistence.*;

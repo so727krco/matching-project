@@ -1,43 +1,36 @@
 package com.matching.backmgr.service.impl;
 
-import com.matching.backmgr.entity.MatchingTraitReference;
-import com.matching.backmgr.repository.MatchingTraitReferenceRepository;
+import com.matching.backmgr.dto.AiProfileResult;
 import com.matching.backmgr.service.MatchingAiService;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class MockMatchingAiServiceImpl implements MatchingAiService {
-
-    private final MatchingTraitReferenceRepository traitRefRepository;
 
     @Override
     public Map<String, Integer> extractTraitWeights(List<String> topics) {
-        // In a real scenario, we send 'topics' and 'reference list' to GPT-4o/Gemini
-        // and parse the JSON response. Here, we mock it by picking random traits 
-        // related to the references.
-        
-        List<MatchingTraitReference> allTraits = traitRefRepository.findAll();
-        Map<String, Integer> resultWeights = new HashMap<>();
-        
-        if (allTraits.isEmpty()) return resultWeights;
+        log.info("Mock AI is extracting trait weights for topics: {}", topics);
+        Map<String, Integer> dummyWeights = new HashMap<>();
+        dummyWeights.put("활발한", 85);
+        dummyWeights.put("외향적인", 90);
+        return dummyWeights;
+    }
 
-        Random random = new Random();
-        
-        // Let's pretend the AI picked 5-8 relevant traits based on the 3 topics
-        int targetTraitCount = 5 + random.nextInt(4);
-        for(int i=0; i<targetTraitCount; i++) {
-            MatchingTraitReference picked = allTraits.get(random.nextInt(allTraits.size()));
-            // Give a weight between 50 and 100 for these target keywords
-            resultWeights.put(picked.getKeyword(), 50 + random.nextInt(51));
-        }
-
-        return resultWeights;
+    @Override
+    public AiProfileResult profileMemberTraits(String memberProfileText) {
+        log.info("Mock AI is profiling member text: {}", memberProfileText);
+        AiProfileResult result = new AiProfileResult();
+        Map<String, Integer> dummyTraits = new HashMap<>();
+        dummyTraits.put("다정다감", 80);
+        dummyTraits.put("유머러스한", 70);
+        dummyTraits.put("책임감있는", 95);
+        result.setTraits(dummyTraits);
+        result.setAnalysisRemarks("모순 없음. 외향적이고 안정된 직장을 가진 분과 매칭 추천. 매칭 시 유머 코드 주의.");
+        return result;
     }
 }

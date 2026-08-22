@@ -31,10 +31,15 @@ public class MemberController {
         return ResponseEntity.ok(memberService.getMemberById(id));
     }
 
+    @GetMapping("/{id}/traits")
+    public ResponseEntity<java.util.Map<String, Integer>> getMemberTraits(@PathVariable Long id) {
+        return ResponseEntity.ok(memberService.getMemberTraits(id));
+    }
+
     @PostMapping
     public ResponseEntity<?> createMember(@RequestBody MemberRegistrationRequest request) {
         if (!request.isValidContact()) {
-            return ResponseEntity.badRequest().body("휴대전화번호 혹은 카카오톡 ID 둘 중 하나는 필수입니다.");
+            return ResponseEntity.badRequest().body("휴대전화번호 또는 카카오톡 ID 중 하나는 필수입니다.");
         }
         
         if (request.getManagerId() == null) {
@@ -64,8 +69,8 @@ public class MemberController {
         try {
             Member savedMember = memberService.registerMember(member, request.getManagerId());
             return ResponseEntity.ok(savedMember);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("회원 등록 실패: " + e.getMessage());
         }
     }
 

@@ -4,15 +4,15 @@ export interface Member {
   gender: string;
   age: number;
   job: string;
-  income: number;
-  hobby: string;
+  salary?: number; income?: number;
+  hobbies?: string; hobby?: string;
   idealType: string;
-  intro: string;
-  humanCaution?: string;
-  aiAnalysis?: string;
+  introduction?: string; intro?: string;
+  remarks?: string; humanCaution?: string;
+  aiRemarks?: string; aiAnalysis?: string;
   managerName?: string;
   manager?: { id: number; name: string };
-  phone?: string;
+  phoneNumber?: string; phone?: string;
   kakaoId?: string;
   photos?: string[]; // Array of base64 strings or URLs
 }

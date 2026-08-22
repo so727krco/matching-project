@@ -10,6 +10,8 @@ export default function MemberInquiry() {
   const [members, setMembersList] = useState<Member[]>([]);
   const [couples, setCouplesList] = useState<Couple[]>([]);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
+  const [memberTraits, setMemberTraits] = useState<Record<string, number> | null>(null);
+  const [showTraits, setShowTraits] = useState(false);
   const [approvals, setApprovals] = useState<any[]>([]); // To track approval status
   const { showAlert, showConfirm } = usePopup();
 
@@ -78,6 +80,30 @@ export default function MemberInquiry() {
   useEffect(() => {
     loadData();
   }, []);
+
+  
+  const handleCloseDetailMember = () => {
+    setDetailMember(null);
+    setShowTraits(false);
+    setMemberTraits(null);
+  };
+
+  const handleShowTraits = async () => {
+    if (!detailMember) return;
+    try {
+      const response = await fetch(`http://localhost:8080/api/members/${detailMember.id}/traits`);
+      if (response.ok) {
+        const data = await response.json();
+        setMemberTraits(data);
+        setShowTraits(show => !show);
+      } else {
+        alert('AI 성향 데이터를 불러오는 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('AI 성향 데이터를 불러오는 중 오류가 발생했습니다.');
+    }
+  };
 
   const handleRequestInfoView = async (targetMember: Member) => {
     const managerId = localStorage.getItem('managerId');
@@ -445,11 +471,11 @@ export default function MemberInquiry() {
 
       {/* Member Detail Modal */}
       {detailMember && (
-        <div className="modal-overlay" style={{ zIndex: 70 }} onClick={() => setDetailMember(null)}>
+        <div className="modal-overlay" style={{ zIndex: 70 }} onClick={() => handleCloseDetailMember()}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="text-lg font-semibold">회원 상세 정보</h3>
-              <button className="close-button" onClick={() => setDetailMember(null)}>
+              <button className="close-button" onClick={() => handleCloseDetailMember()}>
                 <X size={20} />
               </button>
             </div>
@@ -457,11 +483,43 @@ export default function MemberInquiry() {
             <div className="modal-body">
               <div className="flex flex-col gap-4">
                 <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+
+                  <div className="flex justify-end mb-2">
+                    <button onClick={handleShowTraits} className="btn btn-sm" style={{ backgroundColor: '#6366f1', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}>
+                      ✨ AI성향분석
+                    </button>
+                  </div>
+                  
+                  {showTraits && (
+                    <div style={{ backgroundColor: '#e0e7ff', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', border: '1px solid #c7d2fe' }}>
+                      <h4 className="font-bold text-indigo-900 mb-2">🧠 AI 추출 성향 수치</h4>
+                      {memberTraits && Object.keys(memberTraits).length > 0 ? (
+                        <>
+                          <div className="grid mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                            {Object.entries(memberTraits).map(([key, value]) => (
+                              <div key={key} className="flex justify-between items-center text-sm" style={{ backgroundColor: 'white', padding: '0.4rem', borderRadius: '4px', border: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                                <span className="text-gray-700">{key}</span>
+                                <span className="font-bold text-indigo-600">{value}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {detailMember.aiRemarks && (
+                            <div className="mt-2 p-3 bg-white rounded border border-indigo-100 text-sm text-gray-800">
+                              <h5 className="font-bold text-indigo-800 mb-1">📝 AI 종합 분석 의견</h5>
+                              <div style={{ whiteSpace: 'pre-wrap' }}>{detailMember.aiRemarks}</div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-sm text-gray-500">추출된 성향 데이터가 없습니다.</div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-1">
                     <div className="text-xl font-bold">{detailMember.name}</div>
-                    {detailMember.managerName && (
+                    {detailMember.manager?.name && (
                       <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                        담당: {detailMember.managerName}
+                        담당: {detailMember.manager?.name}
                       </span>
                     )}
                   </div>
@@ -475,19 +533,19 @@ export default function MemberInquiry() {
                   </div>
                   <div>
                     <div className="text-sm text-secondary mb-1">연소득</div>
-                    <div className="font-medium">{detailMember.income ? `${detailMember.income} 만원` : '비공개'}</div>
+                    <div className="font-medium">{detailMember.salary ? `${detailMember.salary} 만원` : '비공개'}</div>
                   </div>
                 </div>
 
                 {/* 민감 정보 (담당 매니저만 열람 가능) */}
                 <div style={{ border: '1px solid var(--color-border)', padding: '1rem', borderRadius: 'var(--radius-md)', backgroundColor: '#f9fafb' }}>
                   <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                    <Lock size={16} className={detailMember.managerName === getCurrentUser() ? 'text-green-600' : 'text-red-500'} />
+                    <Lock size={16} className={detailMember.manager?.name === getCurrentUser() ? 'text-green-600' : 'text-red-500'} />
                     <h4 className="font-semibold text-sm">연락처 및 사진 (담당 매니저 전용)</h4>
                   </div>
                   
                   {(() => {
-                    const hasAccess = detailMember.managerName === getCurrentUser();
+                    const hasAccess = detailMember.manager?.name === getCurrentUser();
                     const req = approvals.find(r => r.type === 'INFO_VIEW' && r.targetMemberId === detailMember.id && r.requesterName === getCurrentUser());
                     const isApproved = req?.status === 'approved';
                     const isPending = req?.status === 'pending';
@@ -498,11 +556,11 @@ export default function MemberInquiry() {
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="text-secondary mr-2">연락처:</span>
-                              <span className="font-medium">{detailMember.phone || '010-1234-5678'}</span>
+                              <span className="font-medium">{detailMember.phoneNumber || '정보 없음'}</span>
                             </div>
                             <div>
                               <span className="text-secondary mr-2">카톡ID:</span>
-                              <span className="font-medium">{detailMember.kakaoId || 'kakao_123'}</span>
+                              <span className="font-medium">{detailMember.kakaoId || '정보 없음'}</span>
                             </div>
                           </div>
                           
@@ -526,7 +584,7 @@ export default function MemberInquiry() {
                     return (
                       <div className="text-center py-4 text-sm text-secondary flex flex-col items-center gap-2">
                         <Lock size={24} className="text-gray-300" />
-                        <span>{detailMember.managerName} 매니저만 열람할 수 있는 민감 정보입니다.</span>
+                        <span>{detailMember.manager?.name} 매니저만 열람할 수 있는 민감 정보입니다.</span>
                         <button 
                           className="mt-2 btn btn-outline disabled:opacity-50" 
                           style={{ borderColor: isPending ? '#9ca3af' : 'var(--color-primary)', color: isPending ? '#9ca3af' : 'var(--color-primary)', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
@@ -542,7 +600,7 @@ export default function MemberInquiry() {
 
                 <div>
                   <div className="text-sm text-secondary mb-1">취미</div>
-                  <div className="font-medium">{detailMember.hobby || '정보 없음'}</div>
+                  <div className="font-medium">{detailMember.hobbies || '정보 없음'}</div>
                 </div>
 
                 <div>
@@ -555,21 +613,21 @@ export default function MemberInquiry() {
                 <div>
                   <div className="text-sm text-secondary mb-1">자기소개</div>
                   <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
-                    {detailMember.intro || '정보 없음'}
+                    {detailMember.introduction || '정보 없음'}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
                   <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
-                    {detailMember.aiAnalysis || '분석 정보가 없습니다.'}
+                    {detailMember.aiRemarks || '분석 정보가 없습니다.'}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-secondary mb-1 text-red-500 font-semibold">주의사항</div>
                   <div style={{ backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#991b1b', border: '1px solid #fecaca' }}>
-                    {detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
+                    {detailMember.remarks || '입력된 주의사항이 없습니다.'}
                   </div>
                 </div>
               </div>

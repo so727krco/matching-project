@@ -28,4 +28,7 @@ public class AiConfig {
 
     @Column(columnDefinition = "TEXT")
     private String systemPrompt;
+    
+    @Column(name = "usage_type")
+    private String usageType; // e.g., "MATCHING_SEARCH", "MEMBER_PROFILING"
 }

@@ -1,4 +1,4 @@
-﻿package com.matching.backmgr.service;
+package com.matching.backmgr.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,7 +37,7 @@ public class MatchingService {
     @Transactional
     public Map<String, Object> executeMatching(MatchingRequestDto request) {
         // 1. Get active AI Config
-        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrue().orElse(null);
+        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH").orElseGet(() -> aiConfigRepository.findByIsActiveTrue().orElse(null));
         
         MatchingAiService aiServiceToUse = mockAiService; // fallback
         

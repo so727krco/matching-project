@@ -297,7 +297,7 @@ public class DummyDataController {
                 traitsMap.put(TRAITS_PERSONALITY[random.nextInt(TRAITS_PERSONALITY.length)], random.nextInt(101)); 
                 traitsMap.put(TRAITS_ROMANCE[random.nextInt(TRAITS_ROMANCE.length)], random.nextInt(101));
                 traitsMap.put(TRAITS_PERSONALITY[random.nextInt(TRAITS_PERSONALITY.length)], random.nextInt(101));
-                traitsMap.put(TRAITS_IDEAL[random.nextInt(TRAITS_IDEAL.length)], random.nextInt(101));
+                
             }
             memberTrait.setTraits(traitsMap);
             memberTraitsToSave.add(memberTrait);

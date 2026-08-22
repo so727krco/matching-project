@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface AiConfigRepository extends JpaRepository<AiConfig, Long> {
     Optional<AiConfig> findByIsActiveTrue();
+    Optional<AiConfig> findByIsActiveTrueAndUsageType(String usageType);
+    Optional<AiConfig> findByProvider(String provider);
 }
