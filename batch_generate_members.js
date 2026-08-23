@@ -83,23 +83,11 @@ function getRandomManagerId() { return Math.floor(Math.random() * (101 - 82 + 1)
 
 async function runBatch() {
     console.log("=== 기존 데이터 초기화 시작 ===");
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-        await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
-        await connection.execute('TRUNCATE TABLE member_trait');
-        await connection.execute('TRUNCATE TABLE matching_history');
-        await connection.execute('TRUNCATE TABLE approval_request');
-        await connection.execute('TRUNCATE TABLE member');
-        await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
-        await connection.end();
-        console.log("기존 회원 및 AI 성향 데이터 삭제 완료");
-    } catch (e) {
-        console.error("DB 초기화 실패:", e.message); return;
-    }
+    /* 기존 데이터 삭제 로직 비활성화 (누적 추가) */
 
-    console.log("\n=== 회원 3000명 생성 시작 ===");
+    console.log("\n=== 회원 200명 생성 시작 ===");
     
-    for (let i = 1; i <= 3000; i++) {
+    for (let i = 1; i <= 200; i++) {
         const gender = Math.random() > 0.5 ? 'M' : 'F';
         const name = getRandomItem(firstNames) + (gender === 'M' ? getRandomItem(maleNames) : getRandomItem(femaleNames));
         const fullIntro = getRandomItem(intros1) + " " + getRandomItem(intros2) + " " + getRandomItem(intros3) + " " + getRandomItem(intros4);
@@ -125,12 +113,12 @@ async function runBatch() {
 
         try {
             const response = await axios.post('http://localhost:8080/api/members', memberData);
-            console.log(`[${i}/3000] 회원 생성 완료: ${memberData.name} (취미: ${selectedHobbies})`);
+            console.log(`[${i}/200] 회원 생성 완료: ${memberData.name} (취미: ${selectedHobbies})`);
         } catch (error) {
-            console.error(`[${i}/3000] 회원 생성 실패:`, error.response ? error.response.data : error.message);
+            console.error(`[${i}/200] 회원 생성 실패:`, error.response ? error.response.data : error.message);
             if (error.response && error.response.status === 429) {
                 console.log("API 한도 초과(429). 30초 대기 후 재개합니다...");
-                await new Promise(resolve => setTimeout(resolve, 30000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 // 한 번 더 시도 (간단한 재시도 로직)
                 i--; // 실패한 회원부터 다시 시도하기 위해 인덱스 차감
             }

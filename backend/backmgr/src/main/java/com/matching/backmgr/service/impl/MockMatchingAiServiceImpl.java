@@ -33,4 +33,16 @@ public class MockMatchingAiServiceImpl implements MatchingAiService {
         result.setAnalysisRemarks("모순 없음. 외향적이고 안정된 직장을 가진 분과 매칭 추천. 매칭 시 유머 코드 주의.");
         return result;
     }
+
+    @Override
+    public com.matching.backmgr.dto.AiPhotoResult verifyPhotosAndExtractTraits(List<String> base64Images) {
+        log.info("Mock AI verifying {} photos...", base64Images != null ? base64Images.size() : 0);
+        com.matching.backmgr.dto.AiPhotoResult result = new com.matching.backmgr.dto.AiPhotoResult();
+        result.setFinalPassed(true);
+        result.setReason("Mock Verification Passed");
+        Map<String, Integer> dummyTraits = new HashMap<>();
+        dummyTraits.put("단정한스타일", 80);
+        result.setAppearanceTraits(dummyTraits);
+        return result;
+    }
 }

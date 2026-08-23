@@ -35,6 +35,7 @@ export default function MemberInquiry() {
 
   // Search Filters
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [myMembersOnly, setMyMembersOnly] = useState(false);
   const [searchFilters, setSearchFilters] = useState({
     name: '',
     gender: '전체',
@@ -233,7 +234,7 @@ export default function MemberInquiry() {
 
   // We can just use the server-fetched members directly. 
   // Client-side filtering is no longer needed since backend does it.
-  const filteredMembers = members;
+  const filteredMembers = myMembersOnly ? members.filter(m => m.manager?.id?.toString() === localStorage.getItem('managerId')) : members;
 
   return (
     <div className="app-container bg-gray-50 pb-20">
@@ -304,6 +305,15 @@ export default function MemberInquiry() {
           >
             재조회
           </button>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', cursor: 'pointer', marginLeft: '0.5rem', whiteSpace: 'nowrap' }}>
+            <input 
+              type="checkbox" 
+              checked={myMembersOnly} 
+              onChange={(e) => setMyMembersOnly(e.target.checked)} 
+              style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+            />
+            내 담당회원만 보기
+          </label>
         </div>
 
         {/* Search Form Panel */}
@@ -546,13 +556,13 @@ export default function MemberInquiry() {
 
                 {/* 민감 정보 (담당 매니저만 열람 가능) */}
                 <div style={{ border: '1px solid var(--color-border)', padding: '1rem', borderRadius: 'var(--radius-md)', backgroundColor: '#f9fafb' }}>
-                  <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                    <Lock size={16} className={detailMember.manager?.name === getCurrentUser() ? 'text-green-600' : 'text-red-500'} />
-                    <h4 className="font-semibold text-sm">연락처 및 사진 (담당 매니저 전용)</h4>
-                  </div>
-                  
-                  {(() => {
-                    const hasAccess = detailMember.manager?.name === getCurrentUser();
+                    <div className="flex items-center gap-2 mb-4 bg-gray-50 p-2 rounded">
+                      <Lock size={16} className={detailMember.manager?.id?.toString() === localStorage.getItem('managerId') ? 'text-green-600' : 'text-red-500'} />
+                      <h4 className="font-semibold text-sm">연락처 및 사진 (담당 매니저 전용)</h4>
+                    </div>
+                    
+                    {(() => {
+                      const hasAccess = detailMember.manager?.id?.toString() === localStorage.getItem('managerId');
                     const req = approvals.find(r => r.type === 'INFO_VIEW' && r.targetMemberId === detailMember.id && r.requesterName === getCurrentUser());
                     const isApproved = req?.status === 'approved';
                     const isPending = req?.status === 'pending';
@@ -621,13 +631,6 @@ export default function MemberInquiry() {
                   <div className="text-sm text-secondary mb-1">자기소개</div>
                   <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
                     {detailMember.introduction || '정보 없음'}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
-                  <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
-                    {detailMember.aiRemarks || '분석 정보가 없습니다.'}
                   </div>
                 </div>
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, X, ShieldCheck } from 'lucide-react';
 import { usePopup } from '../contexts/PopupContext';
 
-type PhotoStatus = 'verifying' | 'success' | 'fail_no_face' | 'fail_mismatch';
+type PhotoStatus = 'success';
 
 export default function MemberRegistration() {
   const navigate = useNavigate();
@@ -26,12 +26,14 @@ export default function MemberRegistration() {
   const [kakaoId, setKakaoId] = useState('');
 
   // Photos
-  const [photos, setPhotos] = useState<{ id: number; url: string; status: PhotoStatus }[]>([]);
+  const [photos, setPhotos] = useState<{ id: number; url: string; base64: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const idealTypeRef = useRef<HTMLTextAreaElement>(null);
   const introRef = useRef<HTMLTextAreaElement>(null);
   const humanCautionRef = useRef<HTMLTextAreaElement>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleResize = (ref: React.RefObject<HTMLTextAreaElement>) => {
     if (ref.current) {
@@ -49,34 +51,20 @@ export default function MemberRegistration() {
       return;
     }
 
-    const newPhotoObjects = filesArray.map((file, idx) => ({
-      id: Date.now() + idx,
-      url: URL.createObjectURL(file), // create local preview URL
-      status: 'verifying' as PhotoStatus
-    }));
-
-    setPhotos(prev => [...prev, ...newPhotoObjects]);
-
-    // AI Mock Verification
-    newPhotoObjects.forEach((photo, idx) => {
-      setTimeout(() => {
-        setPhotos(prev => {
-          const updated = [...prev];
-          const targetIndex = updated.findIndex(p => p.id === photo.id);
-          if (targetIndex !== -1) {
-            // Mock probability logic: 
-            // 80% Success, 10% No Face (landscape etc), 10% Mismatch
-            const rand = Math.random();
-            let resultStatus: PhotoStatus = 'success';
-            
-            if (rand < 0.1) resultStatus = 'fail_no_face';
-            else if (targetIndex > 0 && rand < 0.2) resultStatus = 'fail_mismatch';
-            
-            updated[targetIndex].status = resultStatus;
-          }
-          return updated;
-        });
-      }, 1500 + idx * 800); // 1.5s delay + staggered
+    Promise.all(filesArray.map(file => {
+      return new Promise<{ id: number, url: string, base64: string }>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve({
+            id: Date.now() + Math.random(),
+            url: URL.createObjectURL(file), // for preview
+            base64: reader.result as string // for backend
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    })).then(newPhotoObjects => {
+       setPhotos(prev => [...prev, ...newPhotoObjects]);
     });
     
     // Reset input
@@ -89,14 +77,6 @@ export default function MemberRegistration() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (photos.some(p => p.status === 'verifying')) {
-      showAlert('AI 사진 검증이 진행 중입니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    if (photos.some(p => p.status.startsWith('fail'))) {
-      showAlert('검증에 실패한 사진이 있습니다. 삭제 후 다시 업로드해주세요.');
-      return;
-    }
     
     const hasPhone = phone && phone.trim().length > 0;
     const hasKakao = kakaoId && kakaoId.trim().length > 0;
@@ -113,6 +93,8 @@ export default function MemberRegistration() {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
       const payload = {
         name: name,
@@ -127,11 +109,11 @@ export default function MemberRegistration() {
         idealType: idealType,
         introduction: intro,
         remarks: humanCaution,
-        imageUrl1: photos[0]?.url || null,
-        imageUrl2: photos[1]?.url || null,
-        imageUrl3: photos[2]?.url || null,
-        imageUrl4: photos[3]?.url || null,
-        imageUrl5: photos[4]?.url || null,
+        imageUrl1: photos[0]?.base64 || null,
+        imageUrl2: photos[1]?.base64 || null,
+        imageUrl3: photos[2]?.base64 || null,
+        imageUrl4: photos[3]?.base64 || null,
+        imageUrl5: photos[4]?.base64 || null,
         managerId: parseInt(managerId, 10)
       };
 
@@ -146,10 +128,12 @@ export default function MemberRegistration() {
         throw new Error(errorMsg);
       }
 
+      setIsSubmitting(false);
       showAlert('회원이 성공적으로 등록되었습니다.', () => {
         navigate('/main');
       });
     } catch (error: any) {
+      setIsSubmitting(false);
       showAlert(error.message || '등록 중 오류가 발생했습니다.');
     }
   };
@@ -262,19 +246,7 @@ export default function MemberRegistration() {
                         >
                           <X size={14} />
                         </button>
-                        <img src={photo.url} alt={`Preview ${index}`} className="w-full h-full object-cover" style={{ filter: photo.status === 'verifying' ? 'blur(2px)' : 'none' }} />
-                        <div className="absolute inset-x-0 bottom-0 p-2 text-xs flex items-center justify-center font-medium" style={{
-                          backgroundColor: 
-                            photo.status === 'verifying' ? 'rgba(0,0,0,0.6)' :
-                            photo.status === 'success' ? 'rgba(22, 163, 74, 0.9)' : 
-                            'rgba(220, 38, 38, 0.9)',
-                          color: 'white'
-                        }}>
-                          {photo.status === 'verifying' && <><Loader2 size={12} className="animate-spin mr-1" /> AI 분석 중...</>}
-                          {photo.status === 'success' && <><CheckCircle2 size={12} className="mr-1" /> 본인 인증 완료 (99%)</>}
-                          {photo.status === 'fail_no_face' && <><AlertCircle size={12} className="mr-1" /> 얼굴 인식 불가</>}
-                          {photo.status === 'fail_mismatch' && <><AlertCircle size={12} className="mr-1" /> 동일인 불일치 (도용 의심)</>}
-                        </div>
+                        <img src={photo.url} alt={`Preview ${index}`} className="w-full h-full object-cover" />
                       </div>
                     ))}
                   </div>
@@ -362,6 +334,23 @@ export default function MemberRegistration() {
           </form>
         </div>
       </main>
+
+      {isSubmitting && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Loader2 className="animate-spin text-indigo-600 mb-4" size={48} />
+          <div className="text-lg font-bold text-gray-800">AI가 프로필과 사진을 심층 분석 중입니다...</div>
+          <div className="text-sm text-gray-500 mt-2">최대 10초 정도 소요될 수 있습니다.</div>
+        </div>
+      )}
     </div>
   );
 }

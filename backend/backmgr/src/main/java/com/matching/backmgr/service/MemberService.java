@@ -110,10 +110,33 @@ public class MemberService {
         
         // 3. AI 호출 및 결과 추출 (예외 발생 시 롤백됨)
         AiProfileResult aiResult = aiServiceToUse.profileMemberTraits(profileText);
-        Map<String, Integer> extractedTraits = aiResult.getTraits();
+        Map<String, Integer> extractedTraits = new java.util.HashMap<>(aiResult.getTraits());
         
+        // --- Photo Verification ---
+        List<String> base64Images = new java.util.ArrayList<>();
+        if (member.getImageUrl1() != null) base64Images.add(member.getImageUrl1());
+        if (member.getImageUrl2() != null) base64Images.add(member.getImageUrl2());
+        if (member.getImageUrl3() != null) base64Images.add(member.getImageUrl3());
+        if (member.getImageUrl4() != null) base64Images.add(member.getImageUrl4());
+        if (member.getImageUrl5() != null) base64Images.add(member.getImageUrl5());
+
+        String finalAiRemarks = "[프로필 분석]\n" + aiResult.getAnalysisRemarks();
+
+        if (!base64Images.isEmpty()) {
+            com.matching.backmgr.dto.AiPhotoResult photoResult = aiServiceToUse.verifyPhotosAndExtractTraits(base64Images);
+            savedMember.setAiVerificationPassed(photoResult.isFinalPassed());
+            finalAiRemarks = "[사진 검증: " + photoResult.getReason() + "]\n" + finalAiRemarks;
+            
+            if (photoResult.getAppearanceTraits() != null) {
+                extractedTraits.putAll(photoResult.getAppearanceTraits());
+            }
+        } else {
+            savedMember.setAiVerificationPassed(false);
+            finalAiRemarks = "[사진 검증: 업로드된 사진이 없습니다.]\n" + finalAiRemarks;
+        }
+
         // 4. 추출된 데이터를 MemberTrait 테이블에 저장 및 AI 분석 의견 저장
-        if (extractedTraits != null && !extractedTraits.isEmpty()) {
+        if (!extractedTraits.isEmpty()) {
             MemberTrait memberTrait = MemberTrait.builder()
                     .member(savedMember)
                     .traits(extractedTraits)
@@ -121,7 +144,7 @@ public class MemberService {
             memberTraitRepository.save(memberTrait);
             
             // Save AI remarks to Member
-            savedMember.setAiRemarks(aiResult.getAnalysisRemarks());
+            savedMember.setAiRemarks(finalAiRemarks);
             memberRepository.save(savedMember);
             
             log.info("AI 프로파일링 완료 - 추출된 특성 갯수: {}", extractedTraits.size());

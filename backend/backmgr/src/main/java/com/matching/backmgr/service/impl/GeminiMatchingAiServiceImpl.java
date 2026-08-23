@@ -133,4 +133,103 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
 
         return result;
     }
+
+    @Override
+    public com.matching.backmgr.dto.AiPhotoResult verifyPhotosAndExtractTraits(List<String> base64Images) {
+        List<String> validImages = base64Images.stream()
+                .filter(img -> img != null && !img.trim().isEmpty())
+                .map(img -> {
+                    if (img.contains(",")) {
+                        return img.split(",")[1];
+                    }
+                    return img;
+                })
+                .collect(Collectors.toList());
+
+        com.matching.backmgr.dto.AiPhotoResult result = new com.matching.backmgr.dto.AiPhotoResult();
+        if (validImages.isEmpty()) {
+            result.setFinalPassed(true);
+            result.setReason("업로드된 사진이 없습니다.");
+            result.setAppearanceTraits(new HashMap<>());
+            return result;
+        }
+
+        List<String> appearanceTraits = traitRefRepository.findAll().stream()
+                .filter(t -> "APPEARANCE".equalsIgnoreCase(t.getCategory()) || "LOOKS".equalsIgnoreCase(t.getCategory()))
+                .map(MatchingTraitReference::getKeyword)
+                .collect(Collectors.toList());
+
+        String url = apiUrl + "?key=" + apiKey;
+
+        String prompt = "You are an AI photo verification assistant. Analyze the following user profile photos.\n" +
+                "1. For each photo, determine: is the face clearly visible? Is there only one person? Is the content safe (not NSFW)?\n" +
+                "2. Across all photos, determine: are they all the same person?\n" +
+                "3. Based on the photos, extract visual appearance traits from the following list and assign a score (0-100).\n" +
+                "[Available Appearance Traits]: " + String.join(", ", appearanceTraits) + "\n\n" +
+                "Respond ONLY with a JSON object in this exact format, with no markdown code blocks:\n" +
+                "{\n" +
+                "  \"final_passed\": true/false (true ONLY IF all photos have clear face, single person, safe, and ALL are the same person),\n" +
+                "  \"reason\": \"If false, explain why in Korean (e.g., '2번째 사진의 이목구비가 불분명합니다', '동일인이 아닙니다'). If true, write '검증 완료'\",\n" +
+                "  \"appearance_traits\": {\n" +
+                "    \"trait1\": 80,\n" +
+                "    \"trait2\": 90\n" +
+                "  }\n" +
+                "}";
+
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, Object> contents = new HashMap<>();
+        List<Map<String, Object>> parts = new java.util.ArrayList<>();
+        
+        Map<String, Object> textPart = new HashMap<>();
+        textPart.put("text", prompt);
+        parts.add(textPart);
+
+        for (String base64Img : validImages) {
+            Map<String, Object> inlineData = new HashMap<>();
+            inlineData.put("mimeType", "image/jpeg");
+            inlineData.put("data", base64Img);
+            
+            Map<String, Object> imagePart = new HashMap<>();
+            imagePart.put("inlineData", inlineData);
+            parts.add(imagePart);
+        }
+
+        contents.put("parts", parts);
+        requestBody.put("contents", List.of(contents));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            log.info("Requesting Gemini AI for Photo Verification ({} images)...", validImages.size());
+            String response = restTemplate.postForObject(url, entity, String.class);
+            JsonNode rootNode = objectMapper.readTree(response);
+            String textResponse = rootNode.path("candidates").get(0)
+                    .path("content").path("parts").get(0).path("text").asText();
+            
+            textResponse = textResponse.replaceAll("(?s).*?```json\\s*", "").replaceAll("\\s*```.*", "");
+            log.info("Photo Verification Result JSON: {}", textResponse);
+            
+            JsonNode jsonResult = objectMapper.readTree(textResponse);
+            result.setFinalPassed(jsonResult.path("final_passed").asBoolean(false));
+            result.setReason(jsonResult.path("reason").asText("Unknown reason"));
+            
+            Map<String, Integer> traitsMap = new HashMap<>();
+            if (jsonResult.has("appearance_traits")) {
+                jsonResult.get("appearance_traits").fields().forEachRemaining(entry -> {
+                    traitsMap.put(entry.getKey(), entry.getValue().asInt());
+                });
+            }
+            result.setAppearanceTraits(traitsMap);
+
+        } catch (Exception e) {
+            log.error("Failed to verify photos via AI", e);
+            result.setFinalPassed(false);
+            result.setReason("AI 검증 서버 오류가 발생했습니다.");
+            result.setAppearanceTraits(new HashMap<>());
+        }
+        
+        return result;
+    }
 }
