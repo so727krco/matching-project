@@ -47,6 +47,9 @@ export default function LoginScreen() {
       // 로그인 정보를 localStorage에 임시 저장 (현재 프론트엔드 상태 관리를 위해)
       localStorage.setItem('managerId', managerData.id);
       localStorage.setItem('managerName', managerData.name);
+      if (managerData.isAdmin) {
+        localStorage.setItem('managerRole', 'ADMIN');
+      }
 
       // 메인 화면으로 이동
       navigate('/main');

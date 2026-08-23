@@ -189,14 +189,136 @@ public class MemberService {
     }
 
     @Transactional
-    public Member updateMember(Long id, Member updateData) {
+    public Member updateMember(Long id, Member request, List<String> existingUrls, List<org.springframework.web.multipart.MultipartFile> photoFiles, Long requesterManagerId) {
         Member member = getMemberById(id);
-        member.setName(updateData.getName());
-        member.setAge(updateData.getAge());
-        member.setHeight(updateData.getHeight());
-        member.setJob(updateData.getJob());
-        member.setSalary(updateData.getSalary());
-        member.setStatus(updateData.getStatus());
-        return member;
+        
+        Manager requester = managerRepository.findById(requesterManagerId)
+                .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+        
+        if (!requester.getId().equals(member.getManager().getId()) && (requester.getIsAdmin() == null || !requester.getIsAdmin())) {
+            throw new IllegalArgumentException("해당 회원의 정보를 수정할 권한이 없습니다.");
+        }
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (member.getLastUpdateDate() == null || !member.getLastUpdateDate().equals(today)) {
+            member.setUpdateCountToday(0);
+            member.setLastUpdateDate(today);
+        }
+        
+        if (member.getUpdateCountToday() >= 3) {
+            throw new RuntimeException("하루 3회 수정 횟수를 초과했습니다.");
+        }
+        
+        member.setName(request.getName());
+        member.setGender(request.getGender());
+        member.setAge(request.getAge());
+        member.setHeight(request.getHeight());
+        member.setJob(request.getJob());
+        member.setSalary(request.getSalary());
+        member.setPhoneNumber(request.getPhoneNumber());
+        member.setKakaoId(request.getKakaoId());
+        member.setHobbies(request.getHobbies());
+        member.setIdealType(request.getIdealType());
+        member.setIntroduction(request.getIntroduction());
+        member.setRemarks(request.getRemarks());
+
+        // Handle existing URLs
+        List<String> finalUrls = new java.util.ArrayList<>();
+        if (existingUrls != null) {
+            finalUrls.addAll(existingUrls);
+        }
+
+        // Handle new photo files
+        if (photoFiles != null && !photoFiles.isEmpty()) {
+            java.nio.file.Path uploadDir = java.nio.file.Paths.get(System.getProperty("user.dir"), "uploads");
+            try {
+                if (!java.nio.file.Files.exists(uploadDir)) {
+                    java.nio.file.Files.createDirectories(uploadDir);
+                }
+                int newSeq = finalUrls.size() + 1;
+                for (org.springframework.web.multipart.MultipartFile file : photoFiles) {
+                    if (file.isEmpty()) continue;
+                    if (finalUrls.size() >= 5) break;
+                    String ext = ".jpg";
+                    String originalName = file.getOriginalFilename();
+                    if (originalName != null && originalName.contains(".")) {
+                        ext = originalName.substring(originalName.lastIndexOf("."));
+                    }
+                    String fileName = member.getId() + "_update_" + System.currentTimeMillis() + "_" + newSeq + ext;
+                    java.nio.file.Path targetPath = uploadDir.resolve(fileName);
+                    file.transferTo(targetPath.toFile());
+                    finalUrls.add("/uploads/" + fileName);
+                    newSeq++;
+                }
+            } catch (Exception e) {
+                log.error("Failed to save updated uploaded files", e);
+            }
+        }
+
+        member.setImageUrl1(finalUrls.size() > 0 ? finalUrls.get(0) : null);
+        member.setImageUrl2(finalUrls.size() > 1 ? finalUrls.get(1) : null);
+        member.setImageUrl3(finalUrls.size() > 2 ? finalUrls.get(2) : null);
+        member.setImageUrl4(finalUrls.size() > 3 ? finalUrls.get(3) : null);
+        member.setImageUrl5(finalUrls.size() > 4 ? finalUrls.get(4) : null);
+
+        // Run AI Reprofiling
+        String profileText = String.format(
+            "성별: %s\n나이: %d\n직업: %s\n연소득: %s\n취미: %s\n이상형: %s\n자기소개: %s\n주의사항: %s",
+            member.getGender() != null ? member.getGender() : "알수없음",
+            member.getAge(),
+            member.getJob() != null ? member.getJob() : "없음",
+            member.getSalary() != null ? member.getSalary() : "알수없음",
+            member.getHobbies() != null ? member.getHobbies() : "없음",
+            member.getIdealType() != null ? member.getIdealType() : "없음",
+            member.getIntroduction() != null ? member.getIntroduction() : "없음",
+            member.getRemarks() != null ? member.getRemarks() : "없음"
+        );
+        
+        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING").orElseGet(() -> aiConfigRepository.findByIsActiveTrue().orElse(null));
+        MatchingAiService aiServiceToUse = mockAiService;
+        if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
+            aiServiceToUse = new GeminiMatchingAiServiceImpl(
+                activeConfig.getApiUrl(), activeConfig.getApiKey(), activeConfig.getSystemPrompt(), traitRefRepository, objectMapper
+            );
+        }
+        
+        AiProfileResult aiResult = aiServiceToUse.profileMemberTraits(profileText);
+        Map<String, Integer> extractedTraits = new java.util.HashMap<>(aiResult.getTraits());
+        String finalAiRemarks = "[프로필 분석(수정)]\n" + aiResult.getAnalysisRemarks();
+        
+        List<String> base64Images = new java.util.ArrayList<>();
+        for (String url : finalUrls) {
+            if (url == null) continue;
+            try {
+                String fileName = url.replace("/uploads/", "");
+                java.nio.file.Path filePath = java.nio.file.Paths.get(System.getProperty("user.dir"), "uploads", fileName);
+                byte[] bytes = java.nio.file.Files.readAllBytes(filePath);
+                base64Images.add(java.util.Base64.getEncoder().encodeToString(bytes));
+            } catch (Exception e) {
+                log.warn("Failed to read image for AI reprofiling: " + url, e);
+            }
+        }
+
+        if (!base64Images.isEmpty()) {
+            com.matching.backmgr.dto.AiPhotoResult photoResult = aiServiceToUse.verifyPhotosAndExtractTraits(base64Images);
+            member.setAiVerificationPassed(photoResult.isFinalPassed());
+            finalAiRemarks = "[사진 검증(수정): " + photoResult.getReason() + "]\n" + finalAiRemarks;
+            if (photoResult.getAppearanceTraits() != null) {
+                extractedTraits.putAll(photoResult.getAppearanceTraits());
+            }
+        } else {
+            member.setAiVerificationPassed(false);
+            finalAiRemarks = "[사진 검증: 업로드된 사진이 없습니다.]\n" + finalAiRemarks;
+        }
+
+        if (!extractedTraits.isEmpty()) {
+            MemberTrait memberTrait = memberTraitRepository.findById(id).orElseGet(() -> MemberTrait.builder().member(member).build());
+            memberTrait.setTraits(extractedTraits);
+            memberTraitRepository.save(memberTrait);
+            member.setAiRemarks(finalAiRemarks);
+        }
+        
+        member.setUpdateCountToday(member.getUpdateCountToday() + 1);
+        return memberRepository.save(member);
     }
 }

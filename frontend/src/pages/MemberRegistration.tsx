@@ -1,12 +1,11 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, X, ShieldCheck } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Upload, Loader2, X, ShieldCheck } from 'lucide-react';
 import { usePopup } from '../contexts/PopupContext';
-
-type PhotoStatus = 'success';
 
 export default function MemberRegistration() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { showAlert } = usePopup();
   
   // States for basic info
@@ -34,6 +33,45 @@ export default function MemberRegistration() {
   const humanCautionRef = useRef<HTMLTextAreaElement>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      // Fetch member data for edit
+      fetch(`http://localhost:8080/api/members/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          setName(data.name || '');
+          setGender(data.gender === 'M' ? 'male' : 'female');
+          setAge(data.age?.toString() || '');
+          setJob(data.job || '');
+          setIncome(data.salary || '');
+          setHobby(data.hobbies || '');
+          setIdealType(data.idealType || '');
+          setIntro(data.introduction || '');
+          setHumanCaution(data.remarks || '');
+          setPhone(data.phoneNumber || '');
+          setKakaoId(data.kakaoId || '');
+          
+          const loadedPhotos: { id: number; url: string; rawUrl: string; isExisting: boolean; file?: File }[] = [];
+          const urls = [data.imageUrl1, data.imageUrl2, data.imageUrl3, data.imageUrl4, data.imageUrl5];
+          urls.forEach((url, index) => {
+            if (url) {
+              loadedPhotos.push({
+                id: Date.now() + index,
+                url: 'http://localhost:8080' + url,
+                rawUrl: url,
+                isExisting: true
+              });
+            }
+          });
+          setPhotos(loadedPhotos as any);
+        })
+        .catch(err => {
+          console.error(err);
+          showAlert('회원 정보를 불러오는 데 실패했습니다.');
+        });
+    }
+  }, [id]);
 
   const handleResize = (ref: React.RefObject<HTMLTextAreaElement>) => {
     if (ref.current) {
@@ -103,30 +141,44 @@ export default function MemberRegistration() {
       if (humanCaution) formData.append('remarks', humanCaution);
       formData.append('managerId', managerId);
 
+      // Append existing urls and new files
       photos.forEach(photo => {
-        if (photo.file) {
+        if ((photo as any).isExisting) {
+          formData.append('existingUrls', (photo as any).rawUrl);
+        } else if (photo.file) {
           formData.append('photoFiles', photo.file);
         }
       });
 
-      const response = await fetch('http://localhost:8080/api/members', {
-        method: 'POST',
-        // Do NOT set Content-Type header when using FormData, browser will set it automatically with boundary
-        body: formData
+      const url = id ? `http://localhost:8080/api/members/${id}` : 'http://localhost:8080/api/members';
+      const method = id ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
+        body: formData,
       });
 
       if (!response.ok) {
         const errorMsg = await response.text();
-        throw new Error(errorMsg);
+        throw new Error(errorMsg || (id ? '회원 수정에 실패했습니다.' : '회원 등록에 실패했습니다.'));
       }
 
-      setIsSubmitting(false);
-      showAlert('회원이 성공적으로 등록되었습니다.', () => {
-        navigate('/main');
+      showAlert(id ? '회원 정보가 성공적으로 수정되었습니다.' : '회원 등록이 완료되었습니다.\nAI 사진 및 프로필 검증이 무사히 통과되었습니다.', () => {
+        if (id) {
+          navigate('/members', { state: { openDetailId: Number(id) } });
+        } else {
+          navigate('/main');
+        }
       });
     } catch (error: any) {
+      console.error('Registration/Update error:', error);
+      if (error.message.includes('429') || error.message.includes('Rate Limit')) {
+         showAlert('AI API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+         showAlert(error.message || '등록 중 오류가 발생했습니다.');
+      }
+    } finally {
       setIsSubmitting(false);
-      showAlert(error.message || '등록 중 오류가 발생했습니다.');
     }
   };
 
@@ -137,14 +189,46 @@ export default function MemberRegistration() {
           <ChevronLeft size={20} />
           <span>메인으로</span>
         </button>
-        <div className="app-title text-base">회원등록</div>
+        <div className="app-title text-base">{id ? '회원 정보 수정' : '신규 회원 등록'}</div>
         <div style={{ width: '80px' }}></div>
       </header>
       
       <main className="main-content">
         <div className="card max-w-2xl mx-auto" style={{ padding: '2rem' }}>
-          <h2 className="text-2xl mb-2 text-center font-bold">신규 회원 등록</h2>
-          <p className="text-secondary text-sm text-center mb-8">기본 정보 및 연락처, 프로필 사진을 입력해주세요.</p>
+          {id ? (
+            <div className="flex justify-between items-start mb-6 pb-4 border-b">
+              {/* 왼쪽 여백 (타이틀 중앙 정렬용) */}
+              <div style={{ flex: 1 }}></div>
+              
+              {/* 중앙 타이틀 */}
+              <div className="text-center" style={{ flex: 2 }}>
+                <h2 className="text-2xl font-bold mb-2">회원 정보 수정</h2>
+                <p className="text-secondary text-sm m-0">기본 정보 및 연락처, 프로필 사진을 수정해주세요.</p>
+              </div>
+
+              {/* 우측 버튼 */}
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-sm" 
+                  onClick={() => navigate('/members', { state: { openDetailId: Number(id) } })} 
+                  style={{ 
+                    padding: '0.4rem 0.8rem', 
+                    backgroundColor: '#fee2e2', 
+                    color: '#ef4444',           
+                    border: '1px solid #fca5a5',
+                    cursor: 'pointer'
+                  }}>
+                  수정 취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-2xl mb-2 text-center font-bold">신규 회원 등록</h2>
+              <p className="text-secondary text-sm text-center mb-8">기본 정보 및 연락처, 프로필 사진을 입력해주세요.</p>
+            </>
+          )}
           
           <form onSubmit={handleRegister}>
             {/* 1. 기본 정보 */}
@@ -321,7 +405,7 @@ export default function MemberRegistration() {
             </div>
             
             <button type="submit" className="btn btn-primary btn-full btn-lg">
-              회원 등록 완료
+              {id ? '회원 정보 수정 완료' : '회원 등록 완료'}
             </button>
           </form>
         </div>

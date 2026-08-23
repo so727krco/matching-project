@@ -33,6 +33,7 @@ function App() {
             <Route path="/matching" element={<MemberMatching />} />
             <Route path="/manage" element={<MatchingManagement />} />
             <Route path="/members" element={<MemberInquiry />} />
+            <Route path="/members/edit/:id" element={<MemberRegistration />} />
             <Route path="/couples" element={<CoupleInquiry />} />
             <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/history" element={<MatchingHistoryScreen />} />

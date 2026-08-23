@@ -74,8 +74,35 @@ public class MemberController {
         }
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Member> updateMember(@PathVariable Long id, @RequestBody Member updateData) {
-        return ResponseEntity.ok(memberService.updateMember(id, updateData));
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateMember(@PathVariable Long id, 
+                                          @ModelAttribute MemberRegistrationRequest request,
+                                          @RequestParam(value = "photoFiles", required = false) List<org.springframework.web.multipart.MultipartFile> photoFiles) {
+        if (request.getManagerId() == null) {
+            return ResponseEntity.badRequest().body("매니저 ID가 누락되었습니다.");
+        }
+        
+        try {
+            Member updateData = new Member();
+            updateData.setName(request.getName());
+            updateData.setGender(request.getGender());
+            updateData.setAge(request.getAge());
+            updateData.setHeight(request.getHeight());
+            updateData.setJob(request.getJob());
+            updateData.setSalary(request.getSalary());
+            updateData.setPhoneNumber(request.getPhoneNumber());
+            updateData.setKakaoId(request.getKakaoId());
+            updateData.setHobbies(request.getHobbies());
+            updateData.setIdealType(request.getIdealType());
+            updateData.setIntroduction(request.getIntroduction());
+            updateData.setRemarks(request.getRemarks());
+
+            Member updatedMember = memberService.updateMember(id, updateData, request.getExistingUrls(), photoFiles, request.getManagerId());
+            return ResponseEntity.ok(updatedMember);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("회원 수정 실패: " + e.getMessage());
+        }
     }
 }

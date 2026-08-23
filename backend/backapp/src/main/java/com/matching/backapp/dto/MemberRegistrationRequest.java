@@ -23,6 +23,9 @@ public class MemberRegistrationRequest {
     private String imageUrl4;
     private String imageUrl5;
     
+    // For updating member: list of existing photo URLs that are kept
+    private java.util.List<String> existingUrls;
+    
     // We assume the manager ID is passed separately via context/session or in the request body depending on auth.
     // For now, we will expect it to be passed in the request body.
     private Long managerId;

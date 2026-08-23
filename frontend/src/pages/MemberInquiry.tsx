@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Search, X, Heart, CheckCircle2, Lock, UserCog } from 'lucide-react';
 import { getCouples, setCouples, type Member, type Couple, getApprovalRequests, getCurrentUser } from '../utils/storage';
 import { usePopup } from '../contexts/PopupContext';
 
-
 export default function MemberInquiry() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [members, setMembersList] = useState<Member[]>([]);
   const [couples, setCouplesList] = useState<Couple[]>([]);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
@@ -35,7 +35,7 @@ export default function MemberInquiry() {
 
   // Search Filters
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [myMembersOnly, setMyMembersOnly] = useState(false);
+  const [myMembersOnly, setMyMembersOnly] = useState(true);
   const [searchFilters, setSearchFilters] = useState({
     name: '',
     gender: '전체',
@@ -72,15 +72,27 @@ export default function MemberInquiry() {
       setMembersList(availableMembers);
       setCouplesList(allCouples);
       setApprovals(getApprovalRequests());
+      return availableMembers; // Return for useEffect
     } catch (error) {
       console.error(error);
       showAlert('회원 목록을 불러오는데 실패했습니다.');
+      return [];
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData().then((loadedMembers) => {
+      const state = location.state as { openDetailId?: number } | null;
+      if (state?.openDetailId && loadedMembers) {
+        const memberToOpen = loadedMembers.find((m: any) => m.id === state.openDetailId);
+        if (memberToOpen) {
+          setDetailMember(memberToOpen);
+          // clear state
+          window.history.replaceState({}, document.title);
+        }
+      }
+    });
+  }, [location.state]);
 
   
   const handleCloseDetailMember = () => {
@@ -501,7 +513,12 @@ export default function MemberInquiry() {
               <div className="flex flex-col gap-4">
                 <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
 
-                  <div className="flex justify-end mb-2">
+                  <div className="flex justify-end mb-2 gap-2">
+                    {(detailMember.manager?.id?.toString() === localStorage.getItem('managerId') || localStorage.getItem('managerRole') === 'ADMIN') && (
+                      <button onClick={() => navigate(`/members/edit/${detailMember.id}`)} className="btn btn-sm" style={{ backgroundColor: '#10b981', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}>
+                        ✏️ 회원정보 수정
+                      </button>
+                    )}
                     <button onClick={handleShowTraits} className="btn btn-sm" style={{ backgroundColor: '#6366f1', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}>
                       ✨ AI성향분석
                     </button>

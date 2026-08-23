@@ -2,6 +2,7 @@ package com.matching.backmgr.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDate;
 
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Member {
 
     @Id
@@ -64,7 +66,15 @@ public class Member {
 
     // AI Verification Results
     private Boolean aiVerificationPassed;
+    
+    @Column(columnDefinition = "TEXT")
     private String aiRemarks;
+
+    // Update Rate Limiting
+    private java.time.LocalDate lastUpdateDate;
+    
+    @Builder.Default
+    private Integer updateCountToday = 0;
 
     // ManyToOne relationship with Manager
     @ManyToOne(fetch = FetchType.LAZY)
