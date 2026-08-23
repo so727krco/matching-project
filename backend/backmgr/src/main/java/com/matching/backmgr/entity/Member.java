@@ -53,15 +53,10 @@ public class Member {
     private String remarks;
 
     // 프로필 이미지 URL 5개
-    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl1;
-    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl2;
-    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl3;
-    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl4;
-    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl5;
 
     @Enumerated(EnumType.STRING)

@@ -26,7 +26,7 @@ export default function MemberRegistration() {
   const [kakaoId, setKakaoId] = useState('');
 
   // Photos
-  const [photos, setPhotos] = useState<{ id: number; url: string; base64: string }[]>([]);
+  const [photos, setPhotos] = useState<{ id: number; url: string; file?: File }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const idealTypeRef = useRef<HTMLTextAreaElement>(null);
@@ -51,21 +51,13 @@ export default function MemberRegistration() {
       return;
     }
 
-    Promise.all(filesArray.map(file => {
-      return new Promise<{ id: number, url: string, base64: string }>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          resolve({
-            id: Date.now() + Math.random(),
-            url: URL.createObjectURL(file), // for preview
-            base64: reader.result as string // for backend
-          });
-        };
-        reader.readAsDataURL(file);
-      });
-    })).then(newPhotoObjects => {
-       setPhotos(prev => [...prev, ...newPhotoObjects]);
-    });
+    const newPhotoObjects = filesArray.map(file => ({
+      id: Date.now() + Math.random(),
+      url: URL.createObjectURL(file), // for preview
+      file: file // for backend
+    }));
+    
+    setPhotos(prev => [...prev, ...newPhotoObjects as any]);
     
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -96,31 +88,31 @@ export default function MemberRegistration() {
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        name: name,
-        gender: gender === 'male' ? 'M' : 'F',
-        age: parseInt(age, 10),
-        height: 0, // Not explicitly asked in this form mockup
-        job: job,
-        salary: income ? parseInt(income, 10) : 0,
-        phoneNumber: phone,
-        kakaoId: kakaoId,
-        hobbies: hobby,
-        idealType: idealType,
-        introduction: intro,
-        remarks: humanCaution,
-        imageUrl1: photos[0]?.base64 || null,
-        imageUrl2: photos[1]?.base64 || null,
-        imageUrl3: photos[2]?.base64 || null,
-        imageUrl4: photos[3]?.base64 || null,
-        imageUrl5: photos[4]?.base64 || null,
-        managerId: parseInt(managerId, 10)
-      };
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('gender', gender === 'male' ? 'M' : 'F');
+      formData.append('age', age);
+      formData.append('height', '0');
+      formData.append('job', job);
+      formData.append('salary', income ? income : '0');
+      if (phone) formData.append('phoneNumber', phone);
+      if (kakaoId) formData.append('kakaoId', kakaoId);
+      if (hobby) formData.append('hobbies', hobby);
+      if (idealType) formData.append('idealType', idealType);
+      if (intro) formData.append('introduction', intro);
+      if (humanCaution) formData.append('remarks', humanCaution);
+      formData.append('managerId', managerId);
+
+      photos.forEach(photo => {
+        if (photo.file) {
+          formData.append('photoFiles', photo.file);
+        }
+      });
 
       const response = await fetch('http://localhost:8080/api/members', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        // Do NOT set Content-Type header when using FormData, browser will set it automatically with boundary
+        body: formData
       });
 
       if (!response.ok) {

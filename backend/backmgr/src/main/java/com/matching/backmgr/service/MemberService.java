@@ -61,7 +61,7 @@ public class MemberService {
     }
 
     @Transactional
-    public Member registerMember(Member member, Long managerId) {
+    public Member registerMember(Member member, Long managerId, List<org.springframework.web.multipart.MultipartFile> photoFiles) {
         // Validate contact info
         boolean hasPhone = member.getPhoneNumber() != null && !member.getPhoneNumber().trim().isEmpty();
         boolean hasKakao = member.getKakaoId() != null && !member.getKakaoId().trim().isEmpty();
@@ -77,6 +77,45 @@ public class MemberService {
         member.setStatus(Member.MemberStatus.PENDING);
         
         Member savedMember = memberRepository.save(member);
+        
+        // --- Photo Upload Logic ---
+        List<String> base64Images = new java.util.ArrayList<>();
+        if (photoFiles != null && !photoFiles.isEmpty()) {
+            java.nio.file.Path uploadDir = java.nio.file.Paths.get(System.getProperty("user.dir"), "uploads");
+            try {
+                if (!java.nio.file.Files.exists(uploadDir)) {
+                    java.nio.file.Files.createDirectories(uploadDir);
+                }
+                int seq = 1;
+                for (org.springframework.web.multipart.MultipartFile file : photoFiles) {
+                    if (file.isEmpty()) continue;
+                    String ext = ".jpg";
+                    String originalName = file.getOriginalFilename();
+                    if (originalName != null && originalName.contains(".")) {
+                        ext = originalName.substring(originalName.lastIndexOf("."));
+                    }
+                    String fileName = savedMember.getId() + "_" + seq + ext;
+                    java.nio.file.Path targetPath = uploadDir.resolve(fileName);
+                    file.transferTo(targetPath.toFile());
+                    
+                    String url = "/uploads/" + fileName;
+                    if (seq == 1) savedMember.setImageUrl1(url);
+                    else if (seq == 2) savedMember.setImageUrl2(url);
+                    else if (seq == 3) savedMember.setImageUrl3(url);
+                    else if (seq == 4) savedMember.setImageUrl4(url);
+                    else if (seq == 5) savedMember.setImageUrl5(url);
+                    
+                    // Convert to base64 for AI processing
+                    byte[] bytes = java.nio.file.Files.readAllBytes(targetPath);
+                    base64Images.add(java.util.Base64.getEncoder().encodeToString(bytes));
+                    seq++;
+                    if (seq > 5) break;
+                }
+                savedMember = memberRepository.save(savedMember);
+            } catch (Exception e) {
+                log.error("Failed to save uploaded files", e);
+            }
+        }
         
         // --- AI 자동 프로파일링 로직 시작 ---
         // 1. 회원 프로필 정보 문자열 조합
@@ -113,12 +152,6 @@ public class MemberService {
         Map<String, Integer> extractedTraits = new java.util.HashMap<>(aiResult.getTraits());
         
         // --- Photo Verification ---
-        List<String> base64Images = new java.util.ArrayList<>();
-        if (member.getImageUrl1() != null) base64Images.add(member.getImageUrl1());
-        if (member.getImageUrl2() != null) base64Images.add(member.getImageUrl2());
-        if (member.getImageUrl3() != null) base64Images.add(member.getImageUrl3());
-        if (member.getImageUrl4() != null) base64Images.add(member.getImageUrl4());
-        if (member.getImageUrl5() != null) base64Images.add(member.getImageUrl5());
 
         String finalAiRemarks = "[프로필 분석]\n" + aiResult.getAnalysisRemarks();
 

@@ -5,6 +5,7 @@ import com.matching.backmgr.entity.Member;
 import com.matching.backmgr.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,8 +37,9 @@ public class MemberController {
         return ResponseEntity.ok(memberService.getMemberTraits(id));
     }
 
-    @PostMapping
-    public ResponseEntity<?> createMember(@RequestBody MemberRegistrationRequest request) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createMember(@ModelAttribute MemberRegistrationRequest request,
+                                          @RequestParam(value = "photoFiles", required = false) List<org.springframework.web.multipart.MultipartFile> photoFiles) {
         if (!request.isValidContact()) {
             return ResponseEntity.badRequest().body("휴대전화번호 또는 카카오톡 ID 중 하나는 필수입니다.");
         }
@@ -59,15 +61,10 @@ public class MemberController {
                 .idealType(request.getIdealType())
                 .introduction(request.getIntroduction())
                 .remarks(request.getRemarks())
-                .imageUrl1(request.getImageUrl1())
-                .imageUrl2(request.getImageUrl2())
-                .imageUrl3(request.getImageUrl3())
-                .imageUrl4(request.getImageUrl4())
-                .imageUrl5(request.getImageUrl5())
                 .build();
 
         try {
-            Member savedMember = memberService.registerMember(member, request.getManagerId());
+            Member savedMember = memberService.registerMember(member, request.getManagerId(), photoFiles);
             return ResponseEntity.ok(savedMember);
         } catch (Exception e) {
             if ("GEMINI_RATE_LIMIT_EXCEEDED".equals(e.getMessage()) || (e.getMessage() != null && e.getMessage().contains("GEMINI_RATE_LIMIT_EXCEEDED"))) {
