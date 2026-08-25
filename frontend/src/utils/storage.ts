@@ -27,6 +27,7 @@ export interface Match {
   title: string;
   date: string;
   themes?: string[];
+  extractedTargets?: Record<string, number>;
   members: MatchMember[];
   managerName?: string;
 }

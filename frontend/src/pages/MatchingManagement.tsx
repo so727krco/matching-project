@@ -261,7 +261,8 @@ export default function MatchingManagement() {
           date: new Date().toISOString().split('T')[0],
           themes: newMatchThemes.filter(t => t.trim() !== ''),
           managerName: getCurrentUser(),
-          members: matchedMembers
+          members: matchedMembers,
+          extractedTargets: data.extractedTargets
         };
         
         const updatedMatches = [newMatch, ...matches];
@@ -332,6 +333,15 @@ export default function MatchingManagement() {
                       </span>
                     ))}
                   </div>
+                    {match.extractedTargets && Object.keys(match.extractedTargets).length > 0 && (
+                      <div className="flex gap-1 flex-wrap mt-2">
+                        {Object.entries(match.extractedTargets).map(([k, v]) => (
+                          <span key={k} className="badge bg-gray-100 text-gray-700" style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
+                            {k}: {v}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
               
@@ -372,6 +382,15 @@ export default function MatchingManagement() {
                     </span>
                   ))}
                 </div>
+                  {selectedMatch.extractedTargets && Object.keys(selectedMatch.extractedTargets).length > 0 && (
+                    <div className="flex gap-1 flex-wrap mb-4">
+                      {Object.entries(selectedMatch.extractedTargets).map(([k, v]) => (
+                        <span key={k} className="badge bg-gray-100 text-gray-700" style={{ padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem' }}>
+                          {k}: {v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
               </div>
               
               <div className="flex justify-between items-center mb-4">
