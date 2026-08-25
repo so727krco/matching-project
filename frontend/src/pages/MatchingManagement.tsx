@@ -694,12 +694,17 @@ export default function MatchingManagement() {
               <div className="flex flex-col gap-4">
                 <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                   <div className="flex justify-between items-start mb-1">
-                    <div className="text-xl font-bold">{detailMember.name}</div>
-                    {((detailMember.manager && detailMember.manager.name) || detailMember.managerName) && (
-                      <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                        담당: {(detailMember.manager && detailMember.manager.name) || detailMember.managerName}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <div className="text-xl font-bold">{detailMember.name}</div>
+                      {((detailMember.manager && detailMember.manager.name) || detailMember.managerName) && (
+                        <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                          담당: {(detailMember.manager && detailMember.manager.name) || detailMember.managerName}
+                        </span>
+                      )}
+                    </div>
+                    <button onClick={handleShowTraits} className="btn btn-sm" style={{ backgroundColor: '#6366f1', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}>
+                      🤖 AI성향분석
+                    </button>
                   </div>
                   <div className="text-secondary">{detailMember.gender} • {detailMember.age}세</div>
                 </div>
@@ -734,6 +739,25 @@ export default function MatchingManagement() {
                   </div>
                 </div>
 
+                <div>
+                  {showTraits && (
+                  <div style={{ backgroundColor: '#e0e7ff', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', border: '1px solid #c7d2fe' }}>
+                    <h4 className="font-bold text-indigo-900 mb-2">🤖 AI 추출 성향 수치</h4>
+                    {memberTraits && Object.keys(memberTraits).length > 0 ? (
+                      <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                        {Object.entries(memberTraits).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center text-sm" style={{ backgroundColor: Number(value) > 90 ? '#fee2e2' : Number(value) >= 80 ? '#fef9c3' : 'white', padding: '0.4rem', borderRadius: '4px', border: Number(value) > 90 ? '1px solid #fecaca' : Number(value) >= 80 ? '1px solid #fef08a' : '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                            <span className={Number(value) > 90 ? "text-red-800 font-medium" : Number(value) >= 80 ? "text-yellow-800 font-medium" : "text-gray-700"}>{key}</span>
+                            <span className={`font-bold ${Number(value) > 90 ? "text-red-600" : Number(value) >= 80 ? "text-yellow-700" : "text-indigo-600"}`}>{value as number}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">추출된 성향 데이터가 없습니다.</div>
+                    )}
+                  </div>
+                )}
+                
                 <div>
                   <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
                   <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
