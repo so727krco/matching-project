@@ -83,6 +83,31 @@ export default function MatchingManagement() {
   const [femaleCount, setFemaleCount] = useState<number>(2);
   const [isMatching, setIsMatching] = useState(false);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
+  const [memberTraits, setMemberTraits] = useState<Record<string, number> | null>(null);
+  const [showTraits, setShowTraits] = useState(false);
+  
+  const handleCloseDetailMember = () => {
+    setDetailMember(null);
+    setShowTraits(false);
+    setMemberTraits(null);
+  };
+  
+  const handleShowTraits = async () => {
+    if (!detailMember) return;
+    try {
+      const response = await fetch(`http://localhost:8080/api/members/${detailMember.id}/traits`);
+      if (response.ok) {
+        const data = await response.json();
+        setMemberTraits(data);
+        setShowTraits(show => !show);
+      } else {
+        alert('AI 성향 데이터를 불러오는 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('AI 성향 데이터를 불러오는 중 오류가 발생했습니다.');
+    }
+  };
   const [includeOtherManagers, setIncludeOtherManagers] = useState(false);
 
   useEffect(() => {
@@ -405,14 +430,18 @@ export default function MatchingManagement() {
                   ))}
                 </div>
                   {selectedMatch.extractedTargets && Object.keys(selectedMatch.extractedTargets).length > 0 && (
-                    <div className="flex gap-1 flex-wrap mb-4">
-                      {Object.entries(selectedMatch.extractedTargets).map(([k, v]) => (
-                        <span key={k} className="badge bg-gray-100 text-gray-700" style={{ padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem' }}>
-                          {k}: {v}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                      <div style={{ backgroundColor: '#e0e7ff', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', border: '1px solid #c7d2fe' }}>
+                        <h4 className="font-bold text-indigo-900 mb-2">🤖 AI 추출 매칭 기준</h4>
+                        <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                          {Object.entries(selectedMatch.extractedTargets).map(([key, value]) => (
+                            <div key={key} className="flex justify-between items-center text-sm" style={{ backgroundColor: Number(value) > 90 ? '#fee2e2' : Number(value) >= 80 ? '#fef9c3' : 'white', padding: '0.4rem', borderRadius: '4px', border: Number(value) > 90 ? '1px solid #fecaca' : Number(value) >= 80 ? '1px solid #fef08a' : '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+                              <span className={Number(value) > 90 ? "text-red-800 font-medium" : Number(value) >= 80 ? "text-yellow-800 font-medium" : "text-gray-700"}>{key}</span>
+                              <span className={`font-bold ${Number(value) > 90 ? "text-red-600" : Number(value) >= 80 ? "text-yellow-700" : "text-indigo-600"}`}>{value as number}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
               </div>
               
               <div className="flex justify-between items-center mb-4">
@@ -652,11 +681,11 @@ export default function MatchingManagement() {
 
       {/* Member Detail Sub-Modal */}
       {detailMember && (
-        <div className="modal-overlay" style={{ zIndex: 70 }} onClick={() => setDetailMember(null)}>
+        <div className="modal-overlay" style={{ zIndex: 70 }} onClick={handleCloseDetailMember}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="text-lg font-semibold">회원 상세 정보</h3>
-              <button className="close-button" onClick={() => setDetailMember(null)}>
+              <button className="close-button" onClick={handleCloseDetailMember}>
                 <X size={20} />
               </button>
             </div>
