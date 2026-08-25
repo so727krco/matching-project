@@ -47,6 +47,28 @@ const renderScoreBadge = (score: number, opacity: number = 1) => {
 export default function MatchingManagement() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<Match[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:8080/api/matching/history')
+      .then(res => res.json())
+      .then(history => {
+        const localMatches = getMatches();
+        let updated = false;
+        const historyReversed = [...history].reverse();
+        const mergedMatches = localMatches.map((m, idx) => {
+          if (!m.extractedTargets && historyReversed[idx] && historyReversed[idx].extractedTargets) {
+            updated = true;
+            return { ...m, extractedTargets: historyReversed[idx].extractedTargets };
+          }
+          return m;
+        });
+        if (updated) {
+          setMatches(mergedMatches);
+          saveMatches(mergedMatches);
+        }
+      })
+      .catch(e => console.error('History fetch failed', e));
+  }, []);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
