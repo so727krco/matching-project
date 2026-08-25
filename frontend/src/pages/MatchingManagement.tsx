@@ -66,14 +66,39 @@ export default function MatchingManagement() {
   useEffect(() => {
     setMatches(getMatches());
     
-    // Fetch all members, but filter out ones in a couple
-    const members = getMembers();
-    const couples = getCouples();
-    const availableMembers = members.filter(m => 
-      !couples.some(c => c.member1.id === m.id || c.member2.id === m.id)
-    );
-    setAllMembers(availableMembers);
+    // Fetch all members from backend
+    const fetchAvailableMembers = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/members/search');
+        if (response.ok) {
+          const members = await response.json();
+          const couples = getCouples();
+          const availableMembers = members.filter((m: any) => 
+            !couples.some(c => c.member1.id === m.id || c.member2.id === m.id)
+          );
+          setAllMembers(availableMembers);
+        }
+      } catch (error) {
+        console.error("Failed to fetch members:", error);
+      }
+    };
+
+    fetchAvailableMembers();
   }, []);
+
+  const handleViewMemberDetail = async (member: any) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/members/${member.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDetailMember({ ...data, diffScore: member.diffScore, approvalStatus: member.approvalStatus });
+      } else {
+        setDetailMember(member);
+      }
+    } catch (e) {
+      setDetailMember(member);
+    }
+  };
 
   const handleRemoveMember = (matchId: number, memberId: number) => {
     // 실제로는 백엔드 API를 호출합니다.
@@ -370,7 +395,7 @@ export default function MatchingManagement() {
                     key={member.id} 
                     className="card list-item" 
                     style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                    onClick={() => setDetailMember(member)}
+                    onClick={() => handleViewMemberDetail(member)}
                   >
                     <div className="flex gap-4 items-center">
                       {renderScoreBadge(parseInt(((member as any).diffScore ? (100 - ((member as any).diffScore / 10)) : getMockScore(selectedMatch.id, member.id)).toFixed(0), 10))}
@@ -600,9 +625,9 @@ export default function MatchingManagement() {
                 <div style={{ backgroundColor: 'var(--color-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                   <div className="flex justify-between items-start mb-1">
                     <div className="text-xl font-bold">{detailMember.name}</div>
-                    {detailMember.managerName && (
+                    {((detailMember.manager && detailMember.manager.name) || detailMember.managerName) && (
                       <span className="badge bg-gray-200 text-gray-700" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                        담당: {detailMember.managerName}
+                        담당: {(detailMember.manager && detailMember.manager.name) || detailMember.managerName}
                       </span>
                     )}
                   </div>
@@ -616,13 +641,13 @@ export default function MatchingManagement() {
                   </div>
                   <div>
                     <div className="text-sm text-secondary mb-1">연소득</div>
-                    <div className="font-medium">{detailMember.income ? `${detailMember.income} 만원` : '비공개'}</div>
+                    <div className="font-medium">{((detailMember.salary || detailMember.income) ? `${detailMember.salary || detailMember.income} 만원` : '비공개')}</div>
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-secondary mb-1">취미</div>
-                  <div className="font-medium">{detailMember.hobby || '정보 없음'}</div>
+                  <div className="font-medium">{detailMember.hobbies || detailMember.hobby || '정보 없음'}</div>
                 </div>
 
                 <div>
@@ -635,21 +660,21 @@ export default function MatchingManagement() {
                 <div>
                   <div className="text-sm text-secondary mb-1">자기소개</div>
                   <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
-                    {detailMember.intro || '정보 없음'}
+                    {detailMember.introduction || detailMember.intro || '정보 없음'}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
                   <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
-                    {detailMember.aiAnalysis || '분석 정보가 없습니다.'}
+                    {detailMember.aiRemarks || detailMember.aiAnalysis || '분석 정보가 없습니다.'}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-secondary mb-1 text-red-500 font-semibold">주의사항</div>
                   <div style={{ backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#991b1b', border: '1px solid #fecaca' }}>
-                    {detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
+                    {detailMember.remarks || detailMember.humanCaution || '입력된 주의사항이 없습니다.'}
                   </div>
                 </div>
               </div>
