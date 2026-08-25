@@ -91,9 +91,20 @@ export const setMembers = (members: Member[]) => {
 
 export const getMatches = (): Match[] => {
   const data = localStorage.getItem('matches_v2');
-  if (data) return JSON.parse(data);
-  localStorage.setItem('matches_v2', JSON.stringify(MOCK_MATCHES));
-  return MOCK_MATCHES;
+  if (data) {
+    let matches: Match[] = JSON.parse(data);
+    
+    // 자동 삭제 로직: 2026-08-22 이전 매칭 기록은 삭제 처리
+    const filteredMatches = matches.filter(m => m.date >= '2026-08-22');
+    if (filteredMatches.length !== matches.length) {
+      localStorage.setItem('matches_v2', JSON.stringify(filteredMatches));
+      return filteredMatches;
+    }
+    return matches;
+  }
+  const validMockMatches = MOCK_MATCHES.filter(m => m.date >= '2026-08-22');
+  localStorage.setItem('matches_v2', JSON.stringify(validMockMatches));
+  return validMockMatches;
 };
 
 export const setMatches = (matches: Match[]) => {
