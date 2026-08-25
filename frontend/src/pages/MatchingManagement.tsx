@@ -739,8 +739,7 @@ export default function MatchingManagement() {
                   </div>
                 </div>
 
-                <div>
-                  {showTraits && (
+                {showTraits && (
                   <div style={{ backgroundColor: '#e0e7ff', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', border: '1px solid #c7d2fe' }}>
                     <h4 className="font-bold text-indigo-900 mb-2">🤖 AI 추출 성향 수치</h4>
                     {memberTraits && Object.keys(memberTraits).length > 0 ? (
@@ -757,13 +756,15 @@ export default function MatchingManagement() {
                     )}
                   </div>
                 )}
-                
-                <div>
-                  <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
-                  <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
-                    {detailMember.aiRemarks || detailMember.aiAnalysis || '분석 정보가 없습니다.'}
+
+                {showTraits && (
+                  <div>
+                    <div className="text-sm mb-1 font-semibold" style={{ color: '#1d4ed8' }}>AI 분석사항 (매칭 팁)</div>
+                    <div style={{ backgroundColor: '#eff6ff', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: '#1e3a8a', border: '1px solid #bfdbfe' }}>
+                      {detailMember.aiRemarks || detailMember.aiAnalysis || '분석 정보가 없습니다.'}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <div className="text-sm text-secondary mb-1 text-red-500 font-semibold">주의사항</div>
