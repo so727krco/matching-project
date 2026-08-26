@@ -10,4 +10,5 @@ public interface MatchingAiService {
     Map<String, Integer> extractTraitWeights(List<String> topics);
     AiProfileResult profileMemberTraits(String memberProfileText);
     AiPhotoResult verifyPhotosAndExtractTraits(List<String> base64Images);
+    List<Double> getEmbedding(String text);
 }

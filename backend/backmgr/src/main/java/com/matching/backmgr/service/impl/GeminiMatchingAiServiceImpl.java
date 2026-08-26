@@ -232,4 +232,40 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
         
         return result;
     }
+
+    @Override
+    public List<Double> getEmbedding(String text) {
+        String embeddingUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=" + apiKey;
+        
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", "models/gemini-embedding-2");
+        
+        Map<String, Object> content = new HashMap<>();
+        Map<String, Object> parts = new HashMap<>();
+        parts.put("text", text);
+        content.put("parts", List.of(parts));
+        requestBody.put("content", content);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            log.info("Requesting Gemini Embedding API for text: {}", text);
+            String response = restTemplate.postForObject(embeddingUrl, entity, String.class);
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode valuesNode = rootNode.path("embedding").path("values");
+            
+            List<Double> embedding = new java.util.ArrayList<>();
+            if (valuesNode.isArray()) {
+                for (JsonNode val : valuesNode) {
+                    embedding.add(val.asDouble());
+                }
+            }
+            return embedding;
+        } catch (Exception e) {
+            log.error("Failed to fetch embedding from Gemini", e);
+            return new java.util.ArrayList<>();
+        }
+    }
 }

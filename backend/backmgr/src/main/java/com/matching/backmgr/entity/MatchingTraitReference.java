@@ -21,4 +21,7 @@ public class MatchingTraitReference {
 
     @Column(nullable = false, length = 100)
     private String keyword;
+
+    @Column(columnDefinition = "TEXT")
+    private String embeddingData;
 }

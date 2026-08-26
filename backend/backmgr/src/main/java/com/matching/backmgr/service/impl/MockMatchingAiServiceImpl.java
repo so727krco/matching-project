@@ -45,4 +45,15 @@ public class MockMatchingAiServiceImpl implements MatchingAiService {
         result.setAppearanceTraits(dummyTraits);
         return result;
     }
+
+    @Override
+    public List<Double> getEmbedding(String text) {
+        log.info("Mock AI returning dummy embedding for: {}", text);
+        // Returning a dummy 768-dimensional vector
+        List<Double> dummy = new java.util.ArrayList<>();
+        for (int i = 0; i < 768; i++) {
+            dummy.add(Math.random() * 2 - 1);
+        }
+        return dummy;
+    }
 }
