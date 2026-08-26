@@ -29,13 +29,19 @@ public class AiEmbeddingAdminController {
     private final ObjectMapper objectMapper;
 
     private MatchingAiService getAiService() {
-        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH")
+        AiConfig textConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH")
                 .orElseGet(() -> aiConfigRepository.findAll().stream().filter(AiConfig::getIsActive).findFirst().orElse(null));
-        if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
+        
+        AiConfig embeddingConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("EMBEDDING")
+                .orElse(textConfig); // Fallback to text config if EMBEDDING is not defined
+
+        if (textConfig != null && "GEMINI".equalsIgnoreCase(textConfig.getProvider())) {
             return new GeminiMatchingAiServiceImpl(
-                    activeConfig.getApiUrl(),
-                    activeConfig.getApiKey(),
-                    activeConfig.getSystemPrompt(),
+                    textConfig.getApiUrl(),
+                    textConfig.getApiKey(),
+                    embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
+                    embeddingConfig != null ? embeddingConfig.getApiKey() : textConfig.getApiKey(),
+                    textConfig.getSystemPrompt(),
                     traitRefRepository,
                     objectMapper
             );

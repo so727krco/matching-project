@@ -37,7 +37,11 @@ public class MatchingService {
     @Transactional
     public Map<String, Object> executeMatching(MatchingRequestDto request) {
         // 1. Get active AI Config
-        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH").orElseGet(() -> aiConfigRepository.findByIsActiveTrue().orElse(null));
+        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH")
+                .orElseGet(() -> aiConfigRepository.findAll().stream().filter(AiConfig::getIsActive).findFirst().orElse(null));
+        
+        AiConfig embeddingConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("EMBEDDING")
+                .orElse(activeConfig);
         
         MatchingAiService aiServiceToUse = mockAiService; // fallback
         
@@ -46,6 +50,8 @@ public class MatchingService {
             aiServiceToUse = new GeminiMatchingAiServiceImpl(
                 activeConfig.getApiUrl(),
                 activeConfig.getApiKey(), 
+                embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
+                embeddingConfig != null ? embeddingConfig.getApiKey() : activeConfig.getApiKey(),
                 activeConfig.getSystemPrompt(), 
                 traitRefRepository, 
                 objectMapper

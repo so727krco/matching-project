@@ -134,13 +134,19 @@ public class MemberService {
         log.info("회원 가입 완료, AI 프로파일링 시작 - 회원ID: {}", savedMember.getId());
         
         // 2. AI Service 생성 (설정에 따라 MOCK 또는 GEMINI)
-        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING").orElseGet(() -> aiConfigRepository.findByIsActiveTrue().orElse(null));
+        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING")
+                .orElseGet(() -> aiConfigRepository.findAll().stream().filter(AiConfig::getIsActive).findFirst().orElse(null));
+        AiConfig embeddingConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("EMBEDDING")
+                .orElse(activeConfig);
+        
         MatchingAiService aiServiceToUse = mockAiService;
         
         if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
             aiServiceToUse = new GeminiMatchingAiServiceImpl(
                 activeConfig.getApiUrl(),
                 activeConfig.getApiKey(), 
+                embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
+                embeddingConfig != null ? embeddingConfig.getApiKey() : activeConfig.getApiKey(),
                 activeConfig.getSystemPrompt(), 
                 traitRefRepository, 
                 objectMapper
@@ -274,11 +280,21 @@ public class MemberService {
             member.getRemarks() != null ? member.getRemarks() : "없음"
         );
         
-        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING").orElseGet(() -> aiConfigRepository.findByIsActiveTrue().orElse(null));
+        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING")
+                .orElseGet(() -> aiConfigRepository.findAll().stream().filter(AiConfig::getIsActive).findFirst().orElse(null));
+        AiConfig embeddingConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("EMBEDDING")
+                .orElse(activeConfig);
+        
         MatchingAiService aiServiceToUse = mockAiService;
         if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
             aiServiceToUse = new GeminiMatchingAiServiceImpl(
-                activeConfig.getApiUrl(), activeConfig.getApiKey(), activeConfig.getSystemPrompt(), traitRefRepository, objectMapper
+                activeConfig.getApiUrl(), 
+                activeConfig.getApiKey(), 
+                embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
+                embeddingConfig != null ? embeddingConfig.getApiKey() : activeConfig.getApiKey(),
+                activeConfig.getSystemPrompt(), 
+                traitRefRepository, 
+                objectMapper
             );
         }
         

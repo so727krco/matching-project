@@ -25,6 +25,8 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
 
     private final String apiUrl;
     private final String apiKey;
+    private final String embeddingUrl;
+    private final String embeddingApiKey;
     private final String systemPrompt;
     private final MatchingTraitReferenceRepository traitRefRepository;
     private final ObjectMapper objectMapper;
@@ -235,7 +237,10 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
 
     @Override
     public List<Double> getEmbedding(String text) {
-        String embeddingUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=" + apiKey;
+        String finalUrl = embeddingUrl;
+        if (!finalUrl.contains("key=")) {
+            finalUrl = finalUrl + "?key=" + embeddingApiKey;
+        }
         
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", "models/gemini-embedding-2");
@@ -252,7 +257,7 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
 
         try {
             log.info("Requesting Gemini Embedding API for text: {}", text);
-            String response = restTemplate.postForObject(embeddingUrl, entity, String.class);
+            String response = restTemplate.postForObject(finalUrl, entity, String.class);
             JsonNode rootNode = objectMapper.readTree(response);
             JsonNode valuesNode = rootNode.path("embedding").path("values");
             
