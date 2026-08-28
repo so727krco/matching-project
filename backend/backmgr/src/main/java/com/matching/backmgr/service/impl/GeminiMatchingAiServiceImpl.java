@@ -31,6 +31,51 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
     private final MatchingTraitReferenceRepository traitRefRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
+    
+    @Override
+    public com.matching.backmgr.dto.SearchAnalysisResult analyzeSearchQuery(List<String> topics) {
+        String url = apiUrl + "?key=" + apiKey;
+        
+        String prompt;
+        if (systemPrompt.contains("%s")) {
+            prompt = String.format(systemPrompt, topics.toString());
+        } else {
+            prompt = systemPrompt + "\n" +
+                "사용자가 다음 검색어로 매칭 상대를 찾으려고 합니다: " + topics.toString() + "\n" +
+                "이 검색어를 바탕으로 대상을 검색할 때, 후보자 '본인의 성격(own)'에 이 키워드가 있는 것이 중요한지, 아니면 후보자가 '원하는 이상형(ideal)'에 이 키워드가 있는 것이 중요한지 판단해주세요.\n" +
+                "결과를 다음과 같이 JSON으로만 반환하세요: {\"ownWeight\": 0.6, \"idealWeight\": 0.4}";
+        }
+
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, Object> contents = new HashMap<>();
+        Map<String, Object> parts = new HashMap<>();
+        parts.put("text", prompt);
+        contents.put("parts", List.of(parts));
+        requestBody.put("contents", List.of(contents));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        
+        com.matching.backmgr.dto.SearchAnalysisResult result = new com.matching.backmgr.dto.SearchAnalysisResult();
+        try {
+            String response = restTemplate.postForObject(url, entity, String.class);
+            com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(response);
+            String textResponse = rootNode.path("candidates").get(0)
+                    .path("content").path("parts").get(0).path("text").asText();
+            textResponse = textResponse.replaceAll("(?s).*?```json\\s*", "").replaceAll("\\s*```.*", "");
+            com.fasterxml.jackson.databind.JsonNode jsonResult = objectMapper.readTree(textResponse);
+            
+            result.setOwnWeight(jsonResult.path("ownWeight").asDouble(0.5));
+            result.setIdealWeight(jsonResult.path("idealWeight").asDouble(0.5));
+        } catch (Exception e) {
+            log.error("Failed to analyze search query", e);
+            result.setOwnWeight(0.5);
+            result.setIdealWeight(0.5);
+        }
+        
+        return result;
+    }
 
     @Override
     public Map<String, Integer> extractTraitWeights(List<String> topics) {
@@ -111,13 +156,21 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
                 });
             } else {
                 jsonResult.fields().forEachRemaining(entry -> {
-                    if (!entry.getKey().equals("analysisRemarks") && entry.getValue().isInt()) {
+                    if (!entry.getKey().equals("analysisRemarks") && !entry.getKey().equals("idealTraits") && entry.getValue().isInt()) {
                         resultWeights.put(entry.getKey(), entry.getValue().asInt());
                     }
                 });
             }
             
+            Map<String, Integer> idealWeights = new HashMap<>();
+            if (jsonResult.has("idealTraits")) {
+                jsonResult.get("idealTraits").fields().forEachRemaining(entry -> {
+                    idealWeights.put(entry.getKey(), entry.getValue().asInt());
+                });
+            }
+            
             result.setTraits(resultWeights);
+            result.setIdealTraits(idealWeights);
             
             if (jsonResult.has("analysisRemarks")) {
                 result.setAnalysisRemarks(jsonResult.get("analysisRemarks").asText());

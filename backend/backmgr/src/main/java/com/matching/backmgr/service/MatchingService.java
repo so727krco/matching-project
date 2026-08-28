@@ -36,34 +36,78 @@ public class MatchingService {
 
     @Transactional
     public Map<String, Object> executeMatching(MatchingRequestDto request) {
-        // 1. Get active AI Config
-        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH")
+        // 1. Get active AI Configs
+        AiConfig keywordConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_SEARCH")
                 .orElseGet(() -> aiConfigRepository.findAll().stream().filter(AiConfig::getIsActive).findFirst().orElse(null));
+                
+        AiConfig weightConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_WEIGHT")
+                .orElse(keywordConfig);
         
         AiConfig embeddingConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("EMBEDDING")
-                .orElse(activeConfig);
+                .orElse(keywordConfig);
         
-        MatchingAiService aiServiceToUse = mockAiService; // fallback
+        MatchingAiService keywordAiService = mockAiService; // fallback
+        MatchingAiService weightAiService = mockAiService;
         
-        if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
-            log.info("Using GEMINI AI provider");
-            aiServiceToUse = new GeminiMatchingAiServiceImpl(
-                activeConfig.getApiUrl(),
-                activeConfig.getApiKey(), 
+        if (keywordConfig != null && "GEMINI".equalsIgnoreCase(keywordConfig.getProvider())) {
+            log.info("Using GEMINI AI provider for Keywords");
+            keywordAiService = new GeminiMatchingAiServiceImpl(
+                keywordConfig.getApiUrl(),
+                keywordConfig.getApiKey(), 
                 embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
-                embeddingConfig != null ? embeddingConfig.getApiKey() : activeConfig.getApiKey(),
-                activeConfig.getSystemPrompt(), 
+                embeddingConfig != null ? embeddingConfig.getApiKey() : keywordConfig.getApiKey(),
+                keywordConfig.getSystemPrompt(), 
                 traitRefRepository, 
                 objectMapper
             );
-        } else {
-            log.info("Using MOCK AI provider");
+        }
+        
+        if (weightConfig != null && "GEMINI".equalsIgnoreCase(weightConfig.getProvider())) {
+            log.info("Using GEMINI AI provider for Weights");
+            weightAiService = new GeminiMatchingAiServiceImpl(
+                weightConfig.getApiUrl(),
+                weightConfig.getApiKey(), 
+                embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
+                embeddingConfig != null ? embeddingConfig.getApiKey() : weightConfig.getApiKey(),
+                weightConfig.getSystemPrompt(), 
+                traitRefRepository, 
+                objectMapper
+            );
         }
 
-        Map<String, Integer> targetWeights = new HashMap<>();
+        com.matching.backmgr.dto.SearchAnalysisResult analysisResult = null;
+        Map<String, Integer> extractedKeywords = new HashMap<>();
+        
         try {
-            targetWeights = aiServiceToUse.extractTraitWeights(request.getTopics());
-            log.info("AI Extracted Targets: {}", targetWeights);
+            // Call both APIs
+            extractedKeywords = keywordAiService.extractTraitWeights(request.getTopics());
+            analysisResult = weightAiService.analyzeSearchQuery(request.getTopics());
+            log.info("AI Extracted Analysis: Own={}, Ideal={}, Keywords={}", analysisResult.getOwnWeight(), analysisResult.getIdealWeight(), extractedKeywords.size());
+            
+            // Get Topic Vector from extracted standard keywords
+            if (!extractedKeywords.isEmpty()) {
+                String keywordsStr = String.join(", ", extractedKeywords.keySet());
+                log.info("Generating embedding for extracted keywords: {}", keywordsStr);
+                List<Double> topicVec = keywordAiService.getEmbedding(keywordsStr);
+                if (topicVec != null && !topicVec.isEmpty()) {
+                    double[] vecArray = new double[topicVec.size()];
+                    for (int i = 0; i < topicVec.size(); i++) {
+                        vecArray[i] = topicVec.get(i);
+                    }
+                    analysisResult.setTopicVector(vecArray);
+                }
+            } else {
+                log.warn("No keywords extracted, embedding original topics as fallback.");
+                List<Double> topicVec = keywordAiService.getEmbedding(String.join(", ", request.getTopics()));
+                if (topicVec != null && !topicVec.isEmpty()) {
+                    double[] vecArray = new double[topicVec.size()];
+                    for (int i = 0; i < topicVec.size(); i++) {
+                        vecArray[i] = topicVec.get(i);
+                    }
+                    analysisResult.setTopicVector(vecArray);
+                }
+            }
+            
         } catch (Exception aiException) {
             log.error("AI Filtering or Parsing Error", aiException);
             // Save blocked history
@@ -82,15 +126,19 @@ public class MatchingService {
             } catch (Exception e) {
                 log.error("Failed to save blocked history", e);
             }
-            throw new RuntimeException("AI 매칭 필터링 오류: 부적절한 단어가 포함되었거나 AI가 응답을 거부했습니다. 관리자에게 문의하세요.");
+            throw new RuntimeException("AI 매칭 분석 중 오류가 발생했습니다.");
         }
+
+        Map<String, Integer> extractedTargetsForHistory = new HashMap<>(extractedKeywords);
+        extractedTargetsForHistory.put("ownWeight", (int)(analysisResult.getOwnWeight() * 100));
+        extractedTargetsForHistory.put("idealWeight", (int)(analysisResult.getIdealWeight() * 100));
 
         try {
             String topicsJson = objectMapper.writeValueAsString(request.getTopics());
             MatchingHistory history = MatchingHistory.builder()
                     .managerName(request.getManagerName() != null ? request.getManagerName() : "System")
                     .searchTopics(topicsJson)
-                    .extractedTargets(targetWeights)
+                    .extractedTargets(extractedTargetsForHistory)
                     .status("SUCCESS")
                     .build();
             matchingHistoryRepository.save(history);
@@ -103,7 +151,18 @@ public class MatchingService {
         List<MatchingResultDto> femaleCandidates = new ArrayList<>();
 
         for (MemberTrait mt : allMemberTraits) {
-            int diffScore = calculateDistance(targetWeights, mt.getTraits());
+            double[] ownVec = com.matching.backmgr.util.VectorUtil.parseVector(mt.getOwnVector());
+            double[] idealVec = com.matching.backmgr.util.VectorUtil.parseVector(mt.getIdealVector());
+            
+            double simOwn = com.matching.backmgr.util.VectorUtil.calculateCosineSimilarity(analysisResult.getTopicVector(), ownVec);
+            double simIdeal = com.matching.backmgr.util.VectorUtil.calculateCosineSimilarity(analysisResult.getTopicVector(), idealVec);
+            
+            double finalSimilarity = (simOwn * analysisResult.getOwnWeight()) + (simIdeal * analysisResult.getIdealWeight());
+            
+            int diffScore = (int)((1.0 - finalSimilarity) * 50.0);
+            if (diffScore < 0) diffScore = 0;
+            if (diffScore > 100) diffScore = 100;
+            
             MatchingResultDto dto = MatchingResultDto.builder()
                     .memberId(mt.getMember().getId())
                     .name(mt.getMember().getName())
@@ -126,7 +185,7 @@ public class MatchingService {
         List<MatchingResultDto> topFemales = femaleCandidates.stream().limit(request.getFemaleCount()).collect(Collectors.toList());
 
         Map<String, Object> response = new HashMap<>();
-        response.put("extractedTargets", targetWeights);
+        response.put("extractedTargets", extractedTargetsForHistory);
         response.put("males", topMales);
         response.put("females", topFemales);
         return response;

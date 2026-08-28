@@ -20,6 +20,15 @@ public class MockMatchingAiServiceImpl implements MatchingAiService {
         dummyWeights.put("외향적인", 90);
         return dummyWeights;
     }
+    
+    @Override
+    public com.matching.backmgr.dto.SearchAnalysisResult analyzeSearchQuery(List<String> topics) {
+        com.matching.backmgr.dto.SearchAnalysisResult result = new com.matching.backmgr.dto.SearchAnalysisResult();
+        result.setOwnWeight(0.5);
+        result.setIdealWeight(0.5);
+        result.setTopicVector(new double[768]);
+        return result;
+    }
 
     @Override
     public AiProfileResult profileMemberTraits(String memberProfileText) {

@@ -28,4 +28,15 @@ public class MemberTrait {
     @Column(columnDefinition = "json", nullable = false)
     @Builder.Default
     private Map<String, Integer> traits = new HashMap<>();
+
+    @Convert(converter = MapToJsonConverter.class)
+    @Column(name = "ideal_traits", columnDefinition = "json")
+    @Builder.Default
+    private Map<String, Integer> idealTraits = new HashMap<>();
+    
+    @Column(name = "own_vector", columnDefinition = "TEXT")
+    private String ownVector;
+    
+    @Column(name = "ideal_vector", columnDefinition = "TEXT")
+    private String idealVector;
 }

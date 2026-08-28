@@ -175,11 +175,13 @@ public class MemberService {
         }
 
         // 4. 추출된 데이터를 MemberTrait 테이블에 저장 및 AI 분석 의견 저장
-        if (!extractedTraits.isEmpty()) {
+        if (!extractedTraits.isEmpty() || (aiResult.getIdealTraits() != null && !aiResult.getIdealTraits().isEmpty())) {
             MemberTrait memberTrait = MemberTrait.builder()
                     .member(savedMember)
                     .traits(extractedTraits)
+                    .idealTraits(aiResult.getIdealTraits() != null ? aiResult.getIdealTraits() : new java.util.HashMap<>())
                     .build();
+            updateMemberTraitVectors(memberTrait);
             memberTraitRepository.save(memberTrait);
             
             // Save AI remarks to Member
@@ -327,14 +329,85 @@ public class MemberService {
             finalAiRemarks = "[사진 검증: 업로드된 사진이 없습니다.]\n" + finalAiRemarks;
         }
 
-        if (!extractedTraits.isEmpty()) {
-            MemberTrait memberTrait = memberTraitRepository.findById(id).orElseGet(() -> MemberTrait.builder().member(member).build());
+        if (!extractedTraits.isEmpty() || (aiResult.getIdealTraits() != null && !aiResult.getIdealTraits().isEmpty())) {
+            MemberTrait memberTrait = memberTraitRepository.findByMemberId(id).orElseGet(() -> MemberTrait.builder().member(member).build());
             memberTrait.setTraits(extractedTraits);
+            memberTrait.setIdealTraits(aiResult.getIdealTraits() != null ? aiResult.getIdealTraits() : new java.util.HashMap<>());
+            updateMemberTraitVectors(memberTrait);
             memberTraitRepository.save(memberTrait);
             member.setAiRemarks(finalAiRemarks);
         }
         
         member.setUpdateCountToday(member.getUpdateCountToday() + 1);
         return memberRepository.save(member);
+    }
+    
+    @Transactional
+    public void reprofileMemberViaAi(Long id) {
+        Member member = memberRepository.findById(id).orElseThrow(() -> new RuntimeException("Member not found"));
+        
+        String profileText = String.format(
+            "성별: %s\n나이: %d\n직업: %s\n연소득: %s\n취미: %s\n이상형: %s\n자기소개: %s\n주의사항: %s",
+            member.getGender() != null ? member.getGender() : "알수없음",
+            member.getAge(),
+            member.getJob() != null ? member.getJob() : "없음",
+            member.getSalary() != null ? member.getSalary() : "알수없음",
+            member.getHobbies() != null ? member.getHobbies() : "없음",
+            member.getIdealType() != null ? member.getIdealType() : "없음",
+            member.getIntroduction() != null ? member.getIntroduction() : "없음",
+            member.getRemarks() != null ? member.getRemarks() : "없음"
+        );
+        
+        AiConfig activeConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING")
+                .orElseGet(() -> aiConfigRepository.findAll().stream().filter(AiConfig::getIsActive).findFirst().orElse(null));
+        AiConfig embeddingConfig = aiConfigRepository.findByIsActiveTrueAndUsageType("EMBEDDING")
+                .orElse(activeConfig);
+        
+        MatchingAiService aiServiceToUse = mockAiService;
+        if (activeConfig != null && "GEMINI".equalsIgnoreCase(activeConfig.getProvider())) {
+            aiServiceToUse = new GeminiMatchingAiServiceImpl(
+                activeConfig.getApiUrl(), 
+                activeConfig.getApiKey(), 
+                embeddingConfig != null ? embeddingConfig.getApiUrl() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent",
+                embeddingConfig != null ? embeddingConfig.getApiKey() : activeConfig.getApiKey(),
+                activeConfig.getSystemPrompt(), 
+                traitRefRepository, 
+                objectMapper
+            );
+        }
+        
+        AiProfileResult aiResult = aiServiceToUse.profileMemberTraits(profileText);
+        Map<String, Integer> extractedTraits = new java.util.HashMap<>(aiResult.getTraits());
+        String finalAiRemarks = "[프로필 분석(마이그레이션)]\n" + aiResult.getAnalysisRemarks();
+        
+        if (!extractedTraits.isEmpty() || (aiResult.getIdealTraits() != null && !aiResult.getIdealTraits().isEmpty())) {
+            MemberTrait memberTrait = memberTraitRepository.findByMemberId(id).orElseGet(() -> MemberTrait.builder().member(member).build());
+            memberTrait.setTraits(extractedTraits);
+            memberTrait.setIdealTraits(aiResult.getIdealTraits() != null ? aiResult.getIdealTraits() : new java.util.HashMap<>());
+            
+            updateMemberTraitVectors(memberTrait);
+            
+            memberTraitRepository.save(memberTrait);
+            member.setAiRemarks(finalAiRemarks);
+        }
+        
+        memberRepository.save(member);
+    }
+    
+    private void updateMemberTraitVectors(MemberTrait memberTrait) {
+        List<com.matching.backmgr.entity.MatchingTraitReference> refs = traitRefRepository.findAll();
+        Map<String, double[]> refMap = new java.util.HashMap<>();
+        for (com.matching.backmgr.entity.MatchingTraitReference ref : refs) {
+            double[] vec = com.matching.backmgr.util.VectorUtil.parseVector(ref.getEmbeddingData());
+            if (vec != null) {
+                refMap.put(ref.getKeyword(), vec);
+            }
+        }
+        
+        double[] ownVec = com.matching.backmgr.util.VectorUtil.calculateWeightedAverage(memberTrait.getTraits(), refMap);
+        double[] idealVec = com.matching.backmgr.util.VectorUtil.calculateWeightedAverage(memberTrait.getIdealTraits(), refMap);
+        
+        memberTrait.setOwnVector(com.matching.backmgr.util.VectorUtil.toJson(ownVec));
+        memberTrait.setIdealVector(com.matching.backmgr.util.VectorUtil.toJson(idealVec));
     }
 }
