@@ -16,23 +16,23 @@ public class InitData implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        String profilingPrompt = "당신은 데이팅앱의 프로필 AI 분석가입니다.\n" +
-            "사용자가 작성한 텍스트를 읽고, 다음 두가지를 구분하여 JSON 형식으로 반환해주세요:\n" +
-            "1. traits: 사용자의 '본인'의 성향, 관심사, 성격에 해당하는 키워드 10~20개를 [주어진 추출 가능 단어 리스트] 안에서만 골라 점수(0~100) 부여 반환.\n" +
-            "2. idealTraits: 사용자가 원하는 '이상형'의 성향, 관심사, 성격에 해당하는 키워드 10~20개를 [주어진 추출 가능 단어 리스트] 안에서만 골라 점수(0~100) 부여 반환.\n" +
-            "3. analysisRemarks: 사용자의 성향 및 이상형에 대한 종합 코멘트\n" +
-            "JSON 예시:\n" +
+        String profilingPrompt = "?�신?� ?�이?�앱???�로??AI 분석가?�니??\n" +
+            "?�용?��? ?�성???�스?��? ?�고, ?�음 ?��?지�?구분?�여 JSON ?�식?�로 반환?�주?�요:\n" +
+            "1. traits: ?�용?�의 '본인'???�향, 관?�사, ?�격???�당?�는 ?�워??10~20개�? [주어�?추출 가???�어 리스?? ?�에?�만 골라 ?�수(0~100) 부??반환.\n" +
+            "2. idealTraits: ?�용?��? ?�하??'?�상?????�향, 관?�사, ?�격???�당?�는 ?�워??10~20개�? [주어�?추출 가???�어 리스?? ?�에?�만 골라 ?�수(0~100) 부??반환.\n" +
+            "3. analysisRemarks: ?�용?�의 ?�향 �??�상?�에 ?�??종합 코멘??n" +
+            "JSON ?�시:\n" +
             "{\n" +
-            "  \"traits\": {\"단어1\": 80, \"단어2\": 90},\n" +
-            "  \"idealTraits\": {\"단어3\": 80, \"단어4\": 90},\n" +
-            "  \"analysisRemarks\": \"사용자 분석 결과...\"\n" +
+            "  \"traits\": {\"?�어1\": 80, \"?�어2\": 90},\n" +
+            "  \"idealTraits\": {\"?�어3\": 80, \"?�어4\": 90},\n" +
+            "  \"analysisRemarks\": \"?�용??분석 결과...\"\n" +
             "}";
 
         java.util.Optional<AiConfig> profilingOpt = aiConfigRepository.findByIsActiveTrueAndUsageType("MEMBER_PROFILING");
         if (profilingOpt.isEmpty()) {
             AiConfig profilingConfig = AiConfig.builder()
                 .provider("Google Gemini")
-                .apiUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent")
+                .apiUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
                 .apiKey("YOUR_API_KEY_HERE")
                 .usageType("MEMBER_PROFILING")
                 .systemPrompt(profilingPrompt)
@@ -45,16 +45,16 @@ public class InitData implements CommandLineRunner {
             aiConfigRepository.save(cfg);
         }
 
-        String weightPrompt = "당신은 매칭 전문가입니다.\n" +
-            "사용자가 다음 검색어로 매칭 상대를 찾으려고 합니다: %s\n" +
-            "이 검색어를 바탕으로 대상을 검색할 때, 후보자 '본인의 성격(own)'에 이 키워드가 있는 것이 중요한지, 아니면 후보자가 '원하는 이상형(ideal)'에 이 키워드가 있는 것이 중요한지 판단해주세요.\n" +
-            "결과를 다음과 같이 JSON으로만 반환하세요: {\"ownWeight\": 0.6, \"idealWeight\": 0.4}";
+        String weightPrompt = "?�신?� 매칭 ?�문가?�니??\n" +
+            "?�용?��? ?�음 검?�어�?매칭 ?��?�?찾으?�고 ?�니?? %s\n" +
+            "??검?�어�?바탕?�로 ?�?�을 검?�할 ?? ?�보??'본인???�격(own)'?????�워?��? ?�는 것이 중요?��?, ?�니�??�보?��? '?�하???�상??ideal)'?????�워?��? ?�는 것이 중요?��? ?�단?�주?�요.\n" +
+            "결과�??�음�?같이 JSON?�로�?반환?�세?? {\"ownWeight\": 0.6, \"idealWeight\": 0.4}";
 
         java.util.Optional<AiConfig> weightConfigOpt = aiConfigRepository.findByIsActiveTrueAndUsageType("MATCHING_WEIGHT");
         if (weightConfigOpt.isEmpty()) {
             AiConfig weightConfig = AiConfig.builder()
                 .provider("Google Gemini")
-                .apiUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent")
+                .apiUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
                 .apiKey("YOUR_API_KEY_HERE")
                 .usageType("MATCHING_WEIGHT")
                 .systemPrompt(weightPrompt)

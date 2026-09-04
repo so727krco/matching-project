@@ -63,6 +63,9 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
             com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(response);
             String textResponse = rootNode.path("candidates").get(0)
                     .path("content").path("parts").get(0).path("text").asText();
+            
+            log.info("Gemini analyzeSearchQuery RAW: {}", textResponse);
+            
             textResponse = textResponse.replaceAll("(?s).*?```json\\s*", "").replaceAll("\\s*```.*", "");
             com.fasterxml.jackson.databind.JsonNode jsonResult = objectMapper.readTree(textResponse);
             
@@ -79,12 +82,14 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
 
     @Override
     public Map<String, Integer> extractTraitWeights(List<String> topics) {
-        // We reuse the generic json map logic for simple tasks, but here we can just map it directly.
-        // It's not the new format.
         String url = apiUrl + "?key=" + apiKey;
-        String fullPrompt = systemPrompt + "\n\n[Topics]: " + topics.toString();
-        // Since the generic method now parses the new object, we need a separate logic for extractTraitWeights if needed.
-        // But for this demo, extractTraitWeights isn't the one being changed.
+        
+        List<String> allTraits = traitRefRepository.findAll().stream()
+                .map(MatchingTraitReference::getKeyword)
+                .collect(Collectors.toList());
+                
+        String fullPrompt = systemPrompt + "\n\n[추출 가능 194개 기준 단어 리스트]: " + allTraits.toString() + "\n\n[Topics]: " + topics.toString();
+        
         Map<String, Object> requestBody = new HashMap<>();
         Map<String, Object> contents = new HashMap<>();
         Map<String, Object> parts = new HashMap<>();
@@ -100,13 +105,26 @@ public class GeminiMatchingAiServiceImpl implements MatchingAiService {
             String response = restTemplate.postForObject(url, entity, String.class);
             JsonNode rootNode = objectMapper.readTree(response);
             String textResponse = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+            
+            log.info("Gemini extractTraitWeights RAW: {}", textResponse);
+            
             textResponse = textResponse.replaceAll("(?s).*?```json\\s*", "").replaceAll("\\s*```.*", "");
             JsonNode jsonResult = objectMapper.readTree(textResponse);
-            jsonResult.fields().forEachRemaining(entry -> {
-                resultWeights.put(entry.getKey(), entry.getValue().asInt());
-            });
+            
+            // Handle both flat {"word": 100} and nested {"topic1": {"word": 100}, "topic2": {"word": 90}}
+            if (jsonResult.isObject()) {
+                jsonResult.fields().forEachRemaining(entry -> {
+                    if (entry.getValue().isObject()) {
+                        entry.getValue().fields().forEachRemaining(subEntry -> {
+                            resultWeights.put(subEntry.getKey(), subEntry.getValue().asInt());
+                        });
+                    } else if (entry.getValue().isNumber()) {
+                        resultWeights.put(entry.getKey(), entry.getValue().asInt());
+                    }
+                });
+            }
         } catch (Exception e) {
-            log.error("Error", e);
+            log.error("Error extracting trait weights", e);
         }
         return resultWeights;
     }

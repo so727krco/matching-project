@@ -49,7 +49,7 @@ public class MatchingService {
         MatchingAiService keywordAiService = mockAiService; // fallback
         MatchingAiService weightAiService = mockAiService;
         
-        if (keywordConfig != null && "GEMINI".equalsIgnoreCase(keywordConfig.getProvider())) {
+        if (keywordConfig != null && keywordConfig.getProvider() != null && keywordConfig.getProvider().toUpperCase().contains("GEMINI")) {
             log.info("Using GEMINI AI provider for Keywords");
             keywordAiService = new GeminiMatchingAiServiceImpl(
                 keywordConfig.getApiUrl(),
@@ -62,7 +62,7 @@ public class MatchingService {
             );
         }
         
-        if (weightConfig != null && "GEMINI".equalsIgnoreCase(weightConfig.getProvider())) {
+        if (weightConfig != null && weightConfig.getProvider() != null && weightConfig.getProvider().toUpperCase().contains("GEMINI")) {
             log.info("Using GEMINI AI provider for Weights");
             weightAiService = new GeminiMatchingAiServiceImpl(
                 weightConfig.getApiUrl(),
@@ -169,6 +169,7 @@ public class MatchingService {
                     .gender(mt.getMember().getGender())
                     .age(mt.getMember().getAge())
                     .diffScore(diffScore)
+                    .rawSimilarity(finalSimilarity)
                     .build();
 
             if ("M".equals(mt.getMember().getGender())) {
@@ -178,8 +179,8 @@ public class MatchingService {
             }
         }
 
-        maleCandidates.sort(Comparator.comparingInt(MatchingResultDto::getDiffScore));
-        femaleCandidates.sort(Comparator.comparingInt(MatchingResultDto::getDiffScore));
+        maleCandidates.sort(Comparator.comparingDouble(MatchingResultDto::getRawSimilarity).reversed());
+        femaleCandidates.sort(Comparator.comparingDouble(MatchingResultDto::getRawSimilarity).reversed());
 
         List<MatchingResultDto> topMales = maleCandidates.stream().limit(request.getMaleCount()).collect(Collectors.toList());
         List<MatchingResultDto> topFemales = femaleCandidates.stream().limit(request.getFemaleCount()).collect(Collectors.toList());
